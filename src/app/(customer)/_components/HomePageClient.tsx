@@ -1,0 +1,245 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { FiArrowRight, FiCheckCircle, FiShield, FiTruck, FiZap } from "react-icons/fi";
+import { Button } from "@/components/ui/Button";
+import { ProductCard } from "@/components/shared/ProductCard";
+import { CategoryCard } from "@/components/shared/CategoryCard";
+import { ReviewCard } from "@/components/shared/ReviewCard";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import Image from "next/image";
+
+const FEATURED_CATEGORIES = [
+  { id: "1", name: "Bearings", slug: "bearings", image: "https://images.unsplash.com/photo-1618976563759-b6aaee63a2f8?auto=format&fit=crop&q=80&w=800", count: 3 },
+  { id: "2", name: "Drum brakes", slug: "drum-brakes", image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&q=80&w=800", count: 3 },
+  { id: "3", name: "Disk Brakes", slug: "disk-brakes", image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&q=80&w=800", count: 3 },
+  { id: "4", name: "Lithium Iron Chargers", slug: "chargers", image: "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=800", count: 3 },
+];
+
+const TRUST_BADGES = [
+  { icon: FiShield, label: "Genuine Parts", desc: "OEM & certified aftermarket only" },
+  { icon: FiTruck, label: "Free Shipping", desc: "On orders above ₹999" },
+  { icon: FiCheckCircle, label: "Easy Returns", desc: "30-day hassle-free returns" },
+  { icon: FiZap, label: "Fast Delivery", desc: "2–5 business days pan-India" },
+];
+
+function ProductCardSkeleton() {
+  return (
+    <div className="bg-surface border border-border rounded-xl overflow-hidden animate-pulse">
+      <div className="aspect-square bg-border/50" />
+      <div className="p-4 space-y-3">
+        <div className="h-3 bg-border/50 rounded w-1/3" />
+        <div className="h-4 bg-border/50 rounded w-3/4" />
+        <div className="h-4 bg-border/50 rounded w-1/2" />
+        <div className="h-9 bg-border/50 rounded-md mt-2" />
+      </div>
+    </div>
+  );
+}
+
+export default function HomePageClient() {
+  const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/products?isFeatured=true&limit=4")
+      .then((r) => r.json())
+      .then((d) => setFeaturedProducts(d.items || []))
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  return (
+    <>
+      {/* ── Hero ────────────────────────────────────────────────────── */}
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-background" aria-label="Hero">
+        {/* Gradient orbs */}
+        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-primary/20 blur-[120px] pointer-events-none" />
+        <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-accent/10 blur-[120px] pointer-events-none" />
+
+        <div className="container mx-auto px-4 md:px-6 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+          >
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6">
+              <FiZap size={14} className="animate-pulse" />
+              India's #1 EV Spare Parts Store
+            </span>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-extrabold text-text-primary leading-[1.05] mb-6">
+              Power Your{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
+                Electric Ride
+              </span>
+            </h1>
+            <p className="text-lg text-text-secondary mb-8 max-w-lg leading-relaxed">
+              Genuine &amp; premium aftermarket parts for Ather, Ola Electric, TVS iQube and more.
+              Fast delivery, easy returns, expert support.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link href="/shop">
+                <Button size="lg" rightIcon={<FiArrowRight />} className="shadow-glow h-14 px-8 text-base">
+                  Shop Now
+                </Button>
+              </Link>
+              <Link href="/vehicle-compatibility">
+                <Button size="lg" variant="outline" className="h-14 px-8 text-base">
+                  Check Compatibility
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="hidden lg:flex justify-center items-center"
+          >
+            <div className="relative w-full max-w-md aspect-square">
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/10 to-accent/5 border border-primary/10" />
+              <Image
+                src="https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=800"
+                alt="EV Battery Pack — ScootFix"
+                fill
+                className="object-contain p-8"
+                priority
+                sizes="(max-width: 1024px) 0px, 400px"
+              />
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── Trust badges ───────────────────────────────────────────── */}
+      <section className="border-y border-border bg-surface" aria-label="Why ScootFix">
+        <div className="container mx-auto px-4 md:px-6 py-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {TRUST_BADGES.map(({ icon: Icon, label, desc }) => (
+              <div key={label} className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <p className="font-semibold text-text-primary text-sm">{label}</p>
+                  <p className="text-xs text-text-muted">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Featured Categories ─────────────────────────────────────── */}
+      <section className="py-20 container mx-auto px-4 md:px-6" aria-labelledby="categories-heading">
+        <div className="flex items-end justify-between mb-10">
+          <div>
+            <p className="text-primary font-semibold text-sm mb-1">Shop by Category</p>
+            <h2 id="categories-heading" className="text-3xl md:text-4xl font-display font-bold text-text-primary">
+              Find Your Part
+            </h2>
+          </div>
+          <Link href="/shop" className="hidden md:flex items-center gap-1 text-sm text-primary hover:underline">
+            All categories <FiArrowRight size={14} />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {FEATURED_CATEGORIES.map((cat, i) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <CategoryCard {...cat} />
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Featured Products ────────────────────────────────────────── */}
+      <section className="py-20 bg-surface" aria-labelledby="featured-heading">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <p className="text-primary font-semibold text-sm mb-1">Handpicked for You</p>
+              <h2 id="featured-heading" className="text-3xl md:text-4xl font-display font-bold text-text-primary">
+                Featured Products
+              </h2>
+            </div>
+            <Link href="/shop?isFeatured=true" className="hidden md:flex items-center gap-1 text-sm text-primary hover:underline">
+              View all <FiArrowRight size={14} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {isLoading
+              ? Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)
+              : featuredProducts.map((p) => {
+                  const image = p.images?.[0]?.url || "/placeholder.jpg";
+                  return (
+                    <ProductCard
+                      key={p.id}
+                      id={p.id}
+                      name={p.name}
+                      slug={p.slug}
+                      price={p.price}
+                      compareAtPrice={p.compareAtPrice}
+                      image={image}
+                      category={p.category?.name || "Parts"}
+                      rating={p.rating || 0}
+                      reviewsCount={p.reviewsCount || 0}
+                      isNew={p.isNew}
+                      onAddToCart={() => addToCart({ id: p.id, name: p.name, slug: p.slug, price: p.price, image, stock: p.stock })}
+                      onToggleWishlist={() => toggleWishlist({ id: p.id, name: p.name, slug: p.slug, price: p.price, image, category: p.category?.name })}
+                      isWishlisted={isInWishlist(p.id)}
+                    />
+                  );
+                })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Reviews ─────────────────────────────────────────────────── */}
+      <section className="py-20 container mx-auto px-4 md:px-6" aria-labelledby="reviews-heading">
+        <div className="text-center mb-12">
+          <p className="text-primary font-semibold text-sm mb-1">Customer Stories</p>
+          <h2 id="reviews-heading" className="text-3xl md:text-4xl font-display font-bold text-text-primary">
+            Trusted by Riders Across India
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <ReviewCard name="Rahul Sharma" rating={5} date="Oct 2025" comment="Battery pack works flawlessly. Range improved significantly. Fast delivery!" />
+          <ReviewCard name="Priya Menon" rating={5} date="Sep 2025" comment="Found the exact brake pads for my Ather 450X. Genuine quality, great price." />
+          <ReviewCard name="Vikram Nair" rating={4} date="Nov 2025" comment="Display console was easy to install. Support team was very helpful." />
+        </div>
+      </section>
+
+      {/* ── Newsletter ───────────────────────────────────────────────── */}
+      <section className="py-20 bg-gradient-to-br from-primary/5 via-background to-accent/5 border-t border-border" aria-labelledby="newsletter-heading">
+        <div className="container mx-auto px-4 md:px-6 text-center max-w-xl">
+          <h2 id="newsletter-heading" className="text-3xl font-display font-bold text-text-primary mb-3">
+            Stay Updated
+          </h2>
+          <p className="text-text-secondary mb-8">Get the latest deals, new arrivals, and compatibility updates direct to your inbox.</p>
+          <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => e.preventDefault()} aria-label="Newsletter signup">
+            <input
+              type="email"
+              placeholder="Enter your email"
+              className="flex-1 h-12 px-4 rounded-lg border border-border bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+              aria-label="Email address"
+              required
+            />
+            <Button type="submit" className="h-12 px-6 shrink-0">Subscribe</Button>
+          </form>
+        </div>
+      </section>
+    </>
+  );
+}
