@@ -23,7 +23,7 @@ export function Hero3D() {
   const canvasX = useSpring(useTransform(mouseX, [-0.5, 0.5], [-12, 12]), { stiffness: 80, damping: 20 });
   const canvasY = useSpring(useTransform(mouseY, [-0.5, 0.5], [-8, 8]), { stiffness: 80, damping: 20 });
 
-  const totalFrames = 270;
+  const totalFrames = 300;
 
   // ─── 1. Preload all 270 frames ─────────────────────────────────────────────
   useEffect(() => {
@@ -31,7 +31,7 @@ export function Hero3D() {
     const imgs: HTMLImageElement[] = [];
     for (let i = 1; i <= totalFrames; i++) {
       const img = new Image();
-      img.src = `/images/exploded/ezgif-frame-${String(i).padStart(3, "0")}.jpg`;
+      img.src = `/images/exploded/ezgif-frame-${String(i).padStart(3, "0")}.png`;
       img.onload = () => {
         loaded++;
         setLoadingProgress(Math.round((loaded / totalFrames) * 100));
