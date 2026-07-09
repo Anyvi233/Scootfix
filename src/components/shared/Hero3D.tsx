@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
-import { FiArrowRight, FiZap } from "react-icons/fi";
+import { FiZap } from "react-icons/fi";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -12,217 +11,240 @@ export function Hero3D() {
   const [frameIndex, setFrameIndex] = useState(1);
   const [isPreloaded, setIsPreloaded] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const pinContainerRef = useRef<HTMLDivElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const imagesRef = useRef<HTMLImageElement[]>([]);
-  const textContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Parallax mouse movement tracking
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imagesRef = useRef<HTMLImageElement[]>([]);
+  const textRef = useRef<HTMLDivElement>(null);
+
+  // Subtle mouse parallax
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const rotateXSpring = useSpring(useTransform(mouseY, [-0.5, 0.5], [6, -6]), { stiffness: 100, damping: 20 });
-  const rotateYSpring = useSpring(useTransform(mouseX, [-0.5, 0.5], [-8, 8]), { stiffness: 100, damping: 20 });
+  const canvasX = useSpring(useTransform(mouseX, [-0.5, 0.5], [-12, 12]), { stiffness: 80, damping: 20 });
+  const canvasY = useSpring(useTransform(mouseY, [-0.5, 0.5], [-8, 8]), { stiffness: 80, damping: 20 });
 
   const totalFrames = 270;
 
-  // 1. Preload 270 frames of the exploded view
+  // ─── 1. Preload all 270 frames ─────────────────────────────────────────────
   useEffect(() => {
-    let loadedCount = 0;
-    const images: HTMLImageElement[] = [];
-
+    let loaded = 0;
+    const imgs: HTMLImageElement[] = [];
     for (let i = 1; i <= totalFrames; i++) {
       const img = new Image();
-      const paddedNum = String(i).padStart(3, "0");
-      img.src = `/images/exploded/ezgif-frame-${paddedNum}.jpg`;
+      img.src = `/images/exploded/ezgif-frame-${String(i).padStart(3, "0")}.jpg`;
       img.onload = () => {
-        loadedCount++;
-        setLoadingProgress(Math.round((loadedCount / totalFrames) * 100));
-        if (loadedCount === totalFrames) {
-          setIsPreloaded(true);
-        }
+        loaded++;
+        setLoadingProgress(Math.round((loaded / totalFrames) * 100));
+        if (loaded === totalFrames) setIsPreloaded(true);
       };
-      images.push(img);
+      imgs.push(img);
     }
-    imagesRef.current = images;
+    imagesRef.current = imgs;
   }, []);
 
-  // 2. Draw canvas frame dynamically
+  // ─── 2. Draw frame on canvas ───────────────────────────────────────────────
   useEffect(() => {
-    if (!isPreloaded || !canvasRef.current) return;
     const canvas = canvasRef.current;
+    if (!canvas || !isPreloaded) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     const img = imagesRef.current[frameIndex - 1];
-    if (img && img.complete) {
+    if (img?.complete) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     }
   }, [frameIndex, isPreloaded]);
 
-  // 3. Register GSAP ScrollTrigger and Scrub frames
+  // ─── 3. GSAP ScrollTrigger scrubbing ──────────────────────────────────────
   useEffect(() => {
     if (!isPreloaded || !scrollContainerRef.current) return;
 
     gsap.registerPlugin(ScrollTrigger);
 
-    const playhead = { frame: 1 };
+    const obj = { f: 1 };
 
-    // Scroll scrubbing animation for the 3D frame index
-    const animation = gsap.to(playhead, {
-      frame: totalFrames,
+    // Frame scrub
+    const st1 = gsap.to(obj, {
+      f: totalFrames,
       ease: "none",
       scrollTrigger: {
         trigger: scrollContainerRef.current,
         start: "top top",
         end: "bottom bottom",
-        scrub: 0.5, // Smooth scrubbing
-        onUpdate: (self) => {
-          const frame = Math.round(playhead.frame);
-          setFrameIndex(Math.min(totalFrames, Math.max(1, frame)));
-        },
+        scrub: 0.5,
+        onUpdate: () =>
+          setFrameIndex(Math.min(totalFrames, Math.max(1, Math.round(obj.f)))),
       },
     });
 
-    // Scroll scrubbing animation to fade out left text panel naturally
-    const textFade = gsap.to(textContainerRef.current, {
+    // Fade text out over first half of scroll
+    const st2 = gsap.to(textRef.current, {
       opacity: 0,
-      y: -50,
+      y: -60,
       ease: "none",
       scrollTrigger: {
         trigger: scrollContainerRef.current,
         start: "top top",
-        end: "center center",
+        end: "40% top",
         scrub: true,
       },
     });
 
     return () => {
-      animation.scrollTrigger?.kill();
-      textFade.scrollTrigger?.kill();
+      st1.scrollTrigger?.kill();
+      st2.scrollTrigger?.kill();
     };
   }, [isPreloaded]);
 
-  // Handle mouse moves for subtle parallax
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!pinContainerRef.current) return;
-    const rect = pinContainerRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    mouseX.set(x);
-    mouseY.set(y);
+  // ─── Mouse tracking ────────────────────────────────────────────────────────
+  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    mouseX.set((e.clientX - r.left) / r.width - 0.5);
+    mouseY.set((e.clientY - r.top) / r.height - 0.5);
   };
-
-  const handleMouseLeave = () => {
+  const onMouseLeave = () => {
     mouseX.set(0);
     mouseY.set(0);
   };
 
-  const handleExplorePartsClick = (e: React.MouseEvent) => {
+  const scrollToCategories = (e: React.MouseEvent) => {
     e.preventDefault();
-    const target = document.getElementById("categories-heading");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth" });
-    }
+    document.getElementById("categories-heading")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
-    // Outer scroll zone triggering ScrollTrigger. The pinned elements live inside.
-    <div 
-      ref={scrollContainerRef}
-      className="relative w-full z-10"
-      style={{ height: "250vh" }} // Provides 2.5x screen height scroll depth
-    >
-      {/* Sticky/Pinned full screen view deck */}
-      <div 
-        ref={pinContainerRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className="sticky top-0 left-0 w-full h-screen overflow-hidden bg-background flex items-center justify-center"
-      >
-        {/* Soft atmospheric lights & premium gradients */}
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-primary/10 to-transparent blur-[140px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-accent/5 to-transparent blur-[160px] pointer-events-none" />
+    /* ── Scroll region: 250 vh gives plenty of scrub depth ─────────────────── */
+    <div ref={scrollContainerRef} style={{ height: "250vh" }} className="relative w-full">
 
-        {/* Loading Overlay */}
+      {/* ── Pinned viewport ─────────────────────────────────────────────────── */}
+      <div
+        onMouseMove={onMouseMove}
+        onMouseLeave={onMouseLeave}
+        className="sticky top-0 h-screen w-full overflow-hidden"
+        /* Studio-light gradient that matches the JPEG background #bcc4c6
+           so the canvas edges vanish completely. Bright at centre-right
+           (where the scooter sits), slightly darker at the edges. */
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 80% at 68% 48%, #dde3e6 0%, #bcc4c6 55%, #aab4b8 100%)",
+        }}
+      >
+        {/* ── Ambient colour spills – pure CSS, zero JS ─────────────────── */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(circle at 20% 60%, rgba(16,185,129,0.07) 0%, transparent 55%)",
+          }}
+        />
+
+        {/* ── Edge vignette so the hero bleeds into the page below ─────── */}
+        <div
+          className="pointer-events-none absolute bottom-0 left-0 right-0 z-20"
+          style={{
+            height: "18vh",
+            background:
+              "linear-gradient(to bottom, transparent 0%, #bcc4c6 100%)",
+          }}
+        />
+        {/* Left vignette */}
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0 z-10"
+          style={{
+            width: "10vw",
+            background:
+              "linear-gradient(to right, #bcc4c6 0%, transparent 100%)",
+          }}
+        />
+
+        {/* ── Loading overlay ───────────────────────────────────────────── */}
         {!isPreloaded && (
-          <div className="absolute inset-0 bg-background z-50 flex flex-col items-center justify-center gap-4">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <div className="text-center">
-              <p className="text-xs uppercase font-bold tracking-widest text-text-primary">Loading 3D Experience</p>
-              <p className="text-[10px] font-mono text-text-muted mt-1">{loadingProgress}% Preloaded</p>
-            </div>
-            {/* Loading progress bar */}
-            <div className="w-48 h-1 bg-border rounded-full overflow-hidden mt-2">
-              <div 
-                className="h-full bg-primary transition-all duration-150" 
+          <div
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-5"
+            style={{ background: "#bcc4c6" }}
+          >
+            <div className="w-11 h-11 border-[3px] border-slate-700 border-t-transparent rounded-full animate-spin" />
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-700">
+              Loading 3D Experience&ensp;{loadingProgress}%
+            </p>
+            <div className="w-52 h-[3px] rounded-full bg-slate-300 overflow-hidden">
+              <div
+                className="h-full bg-slate-700 transition-all duration-100"
                 style={{ width: `${loadingProgress}%` }}
               />
             </div>
           </div>
         )}
 
-        <div className="container mx-auto px-4 md:px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center h-full relative">
-          
-          {/* Left Column: Editorial Info */}
-          <div 
-            ref={textContainerRef}
-            className="lg:col-span-5 space-y-8 text-left z-20"
-          >
-            <div className="space-y-4">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider">
-                <FiZap size={12} className="animate-pulse text-accent" />
-                Power Your Electric Ride
-              </span>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-extrabold text-text-primary leading-[1.1] tracking-tight">
-                Premium EV Spare Parts<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
-                  for Every Electric Scooter
-                </span>
-              </h1>
-            </div>
+        {/* ── Main layout ────────────────────────────────────────────────── */}
+        <div className="relative z-10 h-full container mx-auto px-6 md:px-10 grid grid-cols-1 lg:grid-cols-12 items-center gap-0">
 
-            <p className="text-base md:text-lg text-text-secondary leading-relaxed max-w-xl">
-              High-performance batteries, motors, controllers, chargers, brakes and accessories delivered across India.
+          {/* Left: editorial text */}
+          <div ref={textRef} className="lg:col-span-5 flex flex-col gap-7">
+            <span className="inline-flex w-fit items-center gap-2 px-3 py-[5px] rounded-full border border-slate-500/40 bg-white/20 text-slate-800 text-[11px] font-bold uppercase tracking-widest">
+              <FiZap size={11} className="text-primary animate-pulse" />
+              India&rsquo;s #1 EV Spare Parts
+            </span>
+
+            <h1 className="font-display font-extrabold text-slate-900 leading-[1.08] tracking-tight text-[clamp(2.2rem,5vw,3.8rem)]">
+              Power Your<br />
+              <span
+                className="text-transparent bg-clip-text"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(135deg, #0f172a 0%, #334155 60%, #0f172a 100%)",
+                }}
+              >
+                Electric Ride
+              </span>
+            </h1>
+
+            <p className="text-slate-700 text-[clamp(0.9rem,1.5vw,1.1rem)] leading-relaxed max-w-md">
+              High-performance batteries, motors, controllers, chargers,
+              brakes &amp; accessories — delivered across India.
             </p>
 
-            <div className="flex flex-wrap gap-4 pt-2">
-              <Link href="/shop">
-                <Button size="lg" className="shadow-glow h-14 px-8 text-sm font-semibold rounded-full">
-                  Shop Now
-                </Button>
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Link
+                href="/shop"
+                className="inline-flex items-center gap-2 h-13 px-7 rounded-full text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 active:scale-95 transition-all shadow-lg"
+                style={{ height: "3.25rem" }}
+              >
+                Shop Now
               </Link>
               <button
-                onClick={handleExplorePartsClick}
-                className="h-14 px-8 text-sm font-semibold rounded-full border border-border bg-surface/50 text-text-primary hover:bg-surface transition-colors focus:outline-none"
+                onClick={scrollToCategories}
+                className="inline-flex items-center gap-2 px-7 rounded-full text-sm font-semibold border border-slate-600/50 bg-white/30 text-slate-900 hover:bg-white/50 active:scale-95 transition-all backdrop-blur-sm"
+                style={{ height: "3.25rem" }}
               >
                 Explore Parts
               </button>
             </div>
           </div>
 
-          {/* Right Column: 3D Exploded View Canvas with Parallax */}
-          <div className="lg:col-span-7 flex justify-center items-center h-full z-10">
+          {/* Right: borderless floating canvas */}
+          <div className="lg:col-span-7 h-full flex items-center justify-end">
             <motion.div
-              style={{ rotateX: rotateXSpring, rotateY: rotateYSpring }}
-              className="relative w-full max-w-2xl aspect-video flex items-center justify-center"
+              style={{ x: canvasX, y: canvasY }}
+              className="relative w-full h-full flex items-center justify-center"
             >
-              {/* Soft backdrop lighting */}
-              <div className="absolute w-[80%] h-[80%] rounded-full bg-primary/5 blur-[80px]" />
-
-              {/* Gentle floating wrapper */}
+              {/* Gentle perpetual float */}
               <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-                className="w-full h-full"
+                animate={{ y: [0, -14, 0] }}
+                transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
+                className="w-[115%] -mr-[5%]"  // Bleed slightly beyond grid to remove right gap
               >
-                <canvas 
+                <canvas
                   ref={canvasRef}
                   width={1920}
                   height={1080}
-                  className="w-full h-full object-contain filter drop-shadow-2xl"
+                  className="w-full h-auto"
+                  style={{
+                    /* multiply makes every white/light-grey pixel vanish against
+                       the matching hero background — zero visible edges */
+                    mixBlendMode: "multiply",
+                    display: "block",
+                  }}
                 />
               </motion.div>
             </motion.div>
@@ -230,14 +252,16 @@ export function Hero3D() {
 
         </div>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 z-20">
-          <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Scroll to Explode</span>
-          <div className="w-6 h-10 border-2 border-text-muted/50 rounded-full flex justify-center p-1.5">
-            <motion.div 
-              animate={{ y: [0, 12, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="w-1.5 h-1.5 bg-primary rounded-full"
+        {/* ── Scroll nudge ─────────────────────────────────────────────── */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-600">
+            Scroll to Explode
+          </span>
+          <div className="w-5 h-9 border-2 border-slate-500/50 rounded-full flex justify-center pt-1.5">
+            <motion.div
+              animate={{ y: [0, 11, 0] }}
+              transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+              className="w-1 h-1 rounded-full bg-slate-700"
             />
           </div>
         </div>
