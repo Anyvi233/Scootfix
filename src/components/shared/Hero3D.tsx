@@ -39,11 +39,15 @@ export function Hero3D() {
     for (let i = 1; i <= totalFrames; i++) {
       const img = new Image();
       img.src = `/images/exploded/ezgif-frame-${String(i).padStart(3, "0")}.png`;
-      img.onload = () => {
+      
+      const handleLoad = () => {
         loaded++;
         setLoadingProgress(Math.round((loaded / totalFrames) * 100));
         if (loaded === totalFrames) setIsPreloaded(true);
       };
+
+      img.onload = handleLoad;
+      img.onerror = handleLoad; // fallback to ensure loader never hangs if a frame fails
       imgs.push(img);
     }
     imagesRef.current = imgs;
