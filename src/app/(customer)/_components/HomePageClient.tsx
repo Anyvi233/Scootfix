@@ -11,7 +11,12 @@ import { ReviewCard } from "@/components/shared/ReviewCard";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import Image from "next/image";
-import { Hero3D } from "@/components/shared/Hero3D";
+import dynamic from "next/dynamic";
+
+const Hero3D = dynamic(
+  () => import("@/components/shared/Hero3D").then((mod) => mod.Hero3D),
+  { ssr: false }
+);
 
 const FEATURED_CATEGORIES = [
   { id: "1", name: "Bearings", slug: "bearings", image: "https://images.unsplash.com/photo-1618976563759-b6aaee63a2f8?auto=format&fit=crop&q=80&w=800", count: 3 },
