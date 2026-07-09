@@ -11,7 +11,7 @@ import { ReviewCard } from "@/components/shared/ReviewCard";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import Image from "next/image";
-import { PartsExplorer } from "@/components/shared/PartsExplorer";
+import { Hero3D } from "@/components/shared/Hero3D";
 
 const FEATURED_CATEGORIES = [
   { id: "1", name: "Bearings", slug: "bearings", image: "https://images.unsplash.com/photo-1618976563759-b6aaee63a2f8?auto=format&fit=crop&q=80&w=800", count: 3 },
@@ -57,66 +57,7 @@ export default function HomePageClient() {
 
   return (
     <>
-      {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-background" aria-label="Hero">
-        {/* Gradient orbs */}
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-primary/20 blur-[120px] pointer-events-none" />
-        <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-accent/10 blur-[120px] pointer-events-none" />
-
-        <div className="container mx-auto px-4 md:px-6 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center py-24">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-          >
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6">
-              <FiZap size={14} className="animate-pulse" />
-              India's #1 EV Spare Parts Store
-            </span>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-extrabold text-text-primary leading-[1.05] mb-6">
-              Power Your{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
-                Electric Ride
-              </span>
-            </h1>
-            <p className="text-lg text-text-secondary mb-8 max-w-lg leading-relaxed">
-              Genuine &amp; premium aftermarket parts for Ather, Ola Electric, TVS iQube and more.
-              Fast delivery, easy returns, expert support.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Link href="/shop">
-                <Button size="lg" rightIcon={<FiArrowRight />} className="shadow-glow h-14 px-8 text-base">
-                  Shop Now
-                </Button>
-              </Link>
-              <Link href="/vehicle-compatibility">
-                <Button size="lg" variant="outline" className="h-14 px-8 text-base">
-                  Check Compatibility
-                </Button>
-              </Link>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="hidden lg:flex justify-center items-center"
-          >
-            <div className="relative w-full max-w-md aspect-square">
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/10 to-accent/5 border border-primary/10" />
-              <Image
-                src="https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=800"
-                alt="EV Battery Pack — ScootFix"
-                fill
-                className="object-contain p-8"
-                priority
-                sizes="(max-width: 1024px) 0px, 400px"
-              />
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      <Hero3D />
 
       {/* ── Trust badges ───────────────────────────────────────────── */}
       <section className="border-y border-border bg-surface" aria-label="Why ScootFix">
@@ -134,13 +75,6 @@ export default function HomePageClient() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── 3D Exploded Parts Explorer ─────────────────────────────── */}
-      <section className="py-20 bg-background/50 border-b border-border" aria-label="Interactive 3D Parts Explorer">
-        <div className="container mx-auto px-4 md:px-6">
-          <PartsExplorer />
         </div>
       </section>
 
