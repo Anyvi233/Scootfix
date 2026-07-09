@@ -11,6 +11,7 @@ import { ReviewCard } from "@/components/shared/ReviewCard";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import Image from "next/image";
+import { PartsExplorer } from "@/components/shared/PartsExplorer";
 
 const FEATURED_CATEGORIES = [
   { id: "1", name: "Bearings", slug: "bearings", image: "https://images.unsplash.com/photo-1618976563759-b6aaee63a2f8?auto=format&fit=crop&q=80&w=800", count: 3 },
@@ -133,6 +134,13 @@ export default function HomePageClient() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── 3D Exploded Parts Explorer ─────────────────────────────── */}
+      <section className="py-20 bg-background/50 border-b border-border" aria-label="Interactive 3D Parts Explorer">
+        <div className="container mx-auto px-4 md:px-6">
+          <PartsExplorer />
         </div>
       </section>
 
