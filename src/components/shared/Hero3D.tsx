@@ -7,19 +7,17 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 export function Hero3D() {
-  // ── Only React state that ever changes is the loading overlay ──────────────
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isPreloaded, setIsPreloaded] = useState(false);
 
-  const heroRef    = useRef<HTMLDivElement>(null);
-  const canvasRef  = useRef<HTMLCanvasElement>(null);
-  const textRef    = useRef<HTMLDivElement>(null);
+  const heroRef      = useRef<HTMLDivElement>(null);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const textRef      = useRef<HTMLDivElement>(null);
   const scrollDotRef = useRef<HTMLDivElement>(null);
 
-  // Animation state lives entirely in refs — zero React re-renders per frame
-  const imagesRef  = useRef<HTMLImageElement[]>([]);
-  const ctxRef     = useRef<CanvasRenderingContext2D | null>(null);
-  const rafRef     = useRef<number | null>(null);
+  const imagesRef    = useRef<HTMLImageElement[]>([]);
+  const ctxRef       = useRef<CanvasRenderingContext2D | null>(null);
+  const rafRef       = useRef<number | null>(null);
   const lastFrameRef = useRef(-1);
 
   const TOTAL = 300;
@@ -28,60 +26,85 @@ export function Hero3D() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    ctxRef.current = canvas.getContext("2d", { alpha: false });
+    // Set desynchronized: true for lower latency, alpha: false for faster blending
+    ctxRef.current = canvas.getContext("2d", {
+      alpha: false,
+      desynchronized: true,
+    });
   }, []);
 
-  // ── 2. Preload all frames ──────────────────────────────────────────────────
+  // ── 2. Preload + Pre-decode all frames on background thread ────────────────
   useEffect(() => {
     let loaded = 0;
     const imgs: HTMLImageElement[] = new Array(TOTAL);
 
-    const handleLoad = () => {
+    const loadAndDecode = async (i: number) => {
+      const img = new Image();
+      img.src = `/images/exploded/ezgif-frame-${String(i + 1).padStart(3, "0")}.png`;
+      
+      try {
+        // Force browser to decode image in GPU memory on a background thread
+        // before we ever display it. Eliminates scroll decoding stutter.
+        await img.decode();
+      } catch (err) {
+        // Fallback for older browsers or load errors
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      }
+
+      imgs[i] = img;
       loaded++;
-      // Batch progress updates every 10 frames to avoid 300 re-renders
+      
+      // Batch updates to avoid React render spam
       if (loaded % 10 === 0 || loaded === TOTAL) {
         setLoadingProgress(Math.round((loaded / TOTAL) * 100));
       }
-      if (loaded === TOTAL) setIsPreloaded(true);
+      if (loaded === TOTAL) {
+        setIsPreloaded(true);
+      }
     };
 
     for (let i = 0; i < TOTAL; i++) {
-      const img = new Image();
-      img.src = `/images/exploded/ezgif-frame-${String(i + 1).padStart(3, "0")}.png`;
-      img.onload  = handleLoad;
-      img.onerror = handleLoad;
-      imgs[i] = img;
+      loadAndDecode(i);
     }
     imagesRef.current = imgs;
   }, []);
 
-  // ── 3. Draw first frame once preloaded ────────────────────────────────────
+  // ── 3. Map Canvas dimensions 1:1 with natural image resolution ─────────────
   useEffect(() => {
     if (!isPreloaded) return;
+    const canvas = canvasRef.current;
+    const firstImg = imagesRef.current[0];
+    if (canvas && firstImg) {
+      // Direct 1-to-1 pixel copying (removes resizing/scaling overhead on drawImage)
+      canvas.width = firstImg.naturalWidth || 1920;
+      canvas.height = firstImg.naturalHeight || 1080;
+    }
     renderFrame(0);
   }, [isPreloaded]);
 
-  // ── Core render function — called from RAF only, never from React ──────────
+  // ── Core render function — called from RAF only ────────────────────────────
   function renderFrame(index: number) {
     const clamped = Math.min(TOTAL - 1, Math.max(0, index));
-    if (clamped === lastFrameRef.current) return; // skip identical frame
+    if (clamped === lastFrameRef.current) return; // skip if frame hasn't changed
     lastFrameRef.current = clamped;
 
     const ctx    = ctxRef.current;
     const canvas = canvasRef.current;
     const img    = imagesRef.current[clamped];
-    if (!ctx || !canvas || !img || !img.complete || !img.naturalWidth) return;
+    if (!ctx || !canvas || !img || !img.complete) return;
 
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   }
 
-  // ── 4. GSAP ScrollTrigger — pin + scrub, zero React involvement ───────────
+  // ── 4. GSAP ScrollTrigger — pin + scrub ───────────────────────────────────
   useEffect(() => {
     if (!isPreloaded || !heroRef.current) return;
 
     gsap.registerPlugin(ScrollTrigger);
 
-    // Proxy object GSAP scrubs — we read it in onUpdate, never setState
     const proxy = { p: 0 };
 
     const anim = gsap.to(proxy, {
@@ -90,24 +113,23 @@ export function Hero3D() {
       scrollTrigger: {
         trigger: heroRef.current,
         start: "top top",
-        end: "+=250%",          // 250vh of scrolling
-        pin: true,              // GSAP pin — no sticky/250vh wrapper needed
-        anticipatePin: 1,       // avoids pin-jump on fast scroll
-        scrub: 0.5,             // half-second smoothing — tight to scroll
+        end: "+=250%",
+        pin: true,
+        anticipatePin: 1,
+        scrub: 0.1,             // extremely tight scroll synchronization
         invalidateOnRefresh: true,
       },
       onUpdate() {
-        // Cancel any pending RAF so we don't stack frames
         if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
 
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = null;
-          const p = proxy.p; // scrubbed progress 0→1
+          const p = proxy.p;
 
-          // ── Canvas frame ──────────────────────────────────────────────────
+          // ── Draw Frame ──
           renderFrame(Math.round(p * (TOTAL - 1)));
 
-          // ── Text fade (first 35% of scroll) — direct DOM, no React ───────
+          // ── Text Fade (0% -> 35% of scroll) ──
           const txt = textRef.current;
           if (txt) {
             const tp = Math.min(1, p / 0.35);
@@ -115,9 +137,11 @@ export function Hero3D() {
             txt.style.transform = `translate3d(0,${-50 * tp}px,0)`;
           }
 
-          // ── Scroll dot hides once animation begins ────────────────────────
+          // ── Scroll indicator fade ──
           const dot = scrollDotRef.current;
-          if (dot) dot.style.opacity = `${1 - Math.min(1, p / 0.08)}`;
+          if (dot) {
+            dot.style.opacity = `${1 - Math.min(1, p / 0.08)}`;
+          }
         });
       },
     });
@@ -135,11 +159,6 @@ export function Hero3D() {
   };
 
   return (
-    /*
-     * heroRef is the element GSAP pins.
-     * Height = 100vh — GSAP handles the spacer / scroll distance.
-     * No outer 250vh wrapper needed.
-     */
     <div
       ref={heroRef}
       className="relative w-full overflow-hidden"
@@ -186,7 +205,7 @@ export function Hero3D() {
       {/* Main layout */}
       <div className="relative z-10 h-full container mx-auto px-6 md:px-10 grid grid-cols-1 lg:grid-cols-12 items-center">
 
-        {/* Left: headline + CTAs — fades on scroll via direct DOM style */}
+        {/* Left Column: Headline */}
         <div
           ref={textRef}
           className="lg:col-span-5 flex flex-col gap-7"
@@ -227,25 +246,32 @@ export function Hero3D() {
           </div>
         </div>
 
-        {/* Right: canvas — GPU-composited layer, never re-rendered by React */}
+        {/* Right Column: Canvas (GPU-accelerated and layer-promoted) */}
         <div className="lg:col-span-7 h-full flex items-center justify-end">
           <div
             className="w-[115%] -mr-[5%]"
-            style={{ willChange: "transform" }}
+            style={{
+              willChange: "transform",
+              transform: "translate3d(0, 0, 0)",
+              backfaceVisibility: "hidden",
+            }}
           >
             <canvas
               ref={canvasRef}
-              width={1920}
-              height={1080}
               className="w-full h-auto block"
-              style={{ backgroundColor: "transparent" }}
+              style={{
+                backgroundColor: "transparent",
+                willChange: "transform",
+                transform: "translate3d(0, 0, 0)",
+                backfaceVisibility: "hidden",
+              }}
             />
           </div>
         </div>
 
       </div>
 
-      {/* Scroll nudge — hides itself once user starts scrolling (via RAF above) */}
+      {/* Scroll indicator */}
       <div
         ref={scrollDotRef}
         className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 pointer-events-none"
