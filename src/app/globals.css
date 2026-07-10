@@ -164,3 +164,11 @@
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
+
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(10px); }
+}
+.animate-scrollBounce {
+  animation: scrollBounce 1.6s ease-in-out infinite;
+}
