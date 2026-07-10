@@ -110,7 +110,7 @@ export function Hero3D() {
       scrollTrigger: {
         trigger: heroRef.current,
         start: "top top",
-        end: "+=160%",          // Shortened scroll depth: 160vh
+        end: "+=120%",          // Shortened scroll depth: 120vh (1.2 screens)
         pin: true,
         anticipatePin: 1,
         scrub: 0.1,             // extremely tight scroll sync
