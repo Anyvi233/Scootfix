@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { FiZap } from "react-icons/fi";
+import { FiZap as ZapIcon } from "react-icons/fi";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -15,49 +15,47 @@ export function Hero3D() {
   const textRef      = useRef<HTMLDivElement>(null);
   const scrollDotRef = useRef<HTMLDivElement>(null);
 
-  const imagesRef    = useRef<HTMLImageElement[]>([]);
+  // Cache ImageBitmaps in memory
+  const bitmapsRef   = useRef<ImageBitmap[]>([]);
   const ctxRef       = useRef<CanvasRenderingContext2D | null>(null);
   const rafRef       = useRef<number | null>(null);
   const lastFrameRef = useRef(-1);
 
   const TOTAL = 300;
 
-  // ── 1. Cache 2D context once ───────────────────────────────────────────────
+  // ── 1. Cache desynchronized 2D canvas context ─────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // Set desynchronized: true for lower latency, alpha: false for faster blending
     ctxRef.current = canvas.getContext("2d", {
       alpha: false,
       desynchronized: true,
     });
   }, []);
 
-  // ── 2. Preload + Pre-decode all frames on background thread ────────────────
+  // ── 2. Preload + Pre-decode every frame into ImageBitmaps ────────────────
   useEffect(() => {
     let loaded = 0;
-    const imgs: HTMLImageElement[] = new Array(TOTAL);
+    const bitmaps: ImageBitmap[] = new Array(TOTAL);
 
-    const loadAndDecode = async (i: number) => {
+    const loadAndCreateBitmap = async (i: number) => {
       const img = new Image();
       img.src = `/images/exploded/ezgif-frame-${String(i + 1).padStart(3, "0")}.png`;
       
       try {
-        // Force browser to decode image in GPU memory on a background thread
-        // before we ever display it. Eliminates scroll decoding stutter.
-        await img.decode();
-      } catch (err) {
-        // Fallback for older browsers or load errors
-        await new Promise((resolve) => {
+        await new Promise((resolve, reject) => {
           img.onload = resolve;
-          img.onerror = resolve;
+          img.onerror = reject;
         });
+        // Create fully decoded GPU-ready ImageBitmap representation
+        const bitmap = await createImageBitmap(img);
+        bitmaps[i] = bitmap;
+      } catch (err) {
+        console.error("Failed to load frame", i, err);
       }
 
-      imgs[i] = img;
       loaded++;
-      
-      // Batch updates to avoid React render spam
+      // Batch progress updates to avoid React render spam
       if (loaded % 10 === 0 || loaded === TOTAL) {
         setLoadingProgress(Math.round((loaded / TOTAL) * 100));
       }
@@ -67,39 +65,38 @@ export function Hero3D() {
     };
 
     for (let i = 0; i < TOTAL; i++) {
-      loadAndDecode(i);
+      loadAndCreateBitmap(i);
     }
-    imagesRef.current = imgs;
+    bitmapsRef.current = bitmaps;
   }, []);
 
-  // ── 3. Map Canvas dimensions 1:1 with natural image resolution ─────────────
+  // ── 3. Map Canvas dimensions 1:1 with natural resolution ──────────────────
   useEffect(() => {
     if (!isPreloaded) return;
     const canvas = canvasRef.current;
-    const firstImg = imagesRef.current[0];
-    if (canvas && firstImg) {
-      // Direct 1-to-1 pixel copying (removes resizing/scaling overhead on drawImage)
-      canvas.width = firstImg.naturalWidth || 1920;
-      canvas.height = firstImg.naturalHeight || 1080;
+    const firstBitmap = bitmapsRef.current[0];
+    if (canvas && firstBitmap) {
+      canvas.width = firstBitmap.width || 1920;
+      canvas.height = firstBitmap.height || 1080;
     }
     renderFrame(0);
   }, [isPreloaded]);
 
-  // ── Core render function — called from RAF only ────────────────────────────
+  // ── Core render function — draws pre-decoded ImageBitmaps ──────────────────
   function renderFrame(index: number) {
     const clamped = Math.min(TOTAL - 1, Math.max(0, index));
-    if (clamped === lastFrameRef.current) return; // skip if frame hasn't changed
+    if (clamped === lastFrameRef.current) return;
     lastFrameRef.current = clamped;
 
     const ctx    = ctxRef.current;
     const canvas = canvasRef.current;
-    const img    = imagesRef.current[clamped];
-    if (!ctx || !canvas || !img || !img.complete) return;
+    const bitmap = bitmapsRef.current[clamped];
+    if (!ctx || !canvas || !bitmap) return;
 
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   }
 
-  // ── 4. GSAP ScrollTrigger — pin + scrub ───────────────────────────────────
+  // ── 4. GSAP ScrollTrigger — pinned over 160vh ──────────────────────────────
   useEffect(() => {
     if (!isPreloaded || !heroRef.current) return;
 
@@ -113,21 +110,22 @@ export function Hero3D() {
       scrollTrigger: {
         trigger: heroRef.current,
         start: "top top",
-        end: "+=250%",
+        end: "+=160%",          // Shortened scroll depth: 160vh
         pin: true,
         anticipatePin: 1,
-        scrub: 0.1,             // extremely tight scroll synchronization
+        scrub: 0.1,             // extremely tight scroll sync
         invalidateOnRefresh: true,
       },
       onUpdate() {
-        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+        if (rafRef.current !== null) return; // skip if a frame is already requested
 
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = null;
           const p = proxy.p;
+          const currentFrame = Math.round(p * (TOTAL - 1));
 
           // ── Draw Frame ──
-          renderFrame(Math.round(p * (TOTAL - 1)));
+          renderFrame(currentFrame);
 
           // ── Text Fade (0% -> 35% of scroll) ──
           const txt = textRef.current;
@@ -150,6 +148,13 @@ export function Hero3D() {
       anim.kill();
       ScrollTrigger.getAll().forEach(t => t.kill());
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+
+      // Close all ImageBitmaps to free GPU memory
+      bitmapsRef.current.forEach(bitmap => {
+        if (bitmap && typeof bitmap.close === "function") {
+          bitmap.close();
+        }
+      });
     };
   }, [isPreloaded]);
 
@@ -212,7 +217,7 @@ export function Hero3D() {
           style={{ willChange: "transform, opacity" }}
         >
           <span className="inline-flex w-fit items-center gap-2 px-3 py-[5px] rounded-full border border-slate-700/30 bg-white/20 text-slate-800 text-[11px] font-bold uppercase tracking-widest">
-            <FiZap size={11} className="text-primary" />
+            <ZapIcon size={11} className="text-primary animate-pulse" />
             India&rsquo;s #1 EV Spare Parts
           </span>
 
