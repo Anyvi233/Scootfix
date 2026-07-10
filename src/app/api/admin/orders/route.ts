@@ -22,7 +22,16 @@ export async function GET(req: NextRequest) {
           user: {
             select: { name: true, email: true }
           },
-          items: true
+          items: {
+            include: {
+              product: {
+                select: {
+                  slug: true,
+                  images: { select: { url: true }, take: 1 }
+                }
+              }
+            }
+          }
         }
       }),
       prisma.order.count()
@@ -50,8 +59,9 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { orderId, status } = body;
 
-    if (!orderId || !status) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const VALID_STATUSES = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
+    if (!orderId || !status || !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "Missing or invalid status" }, { status: 400 });
     }
 
     const updatedOrder = await prisma.order.update({
