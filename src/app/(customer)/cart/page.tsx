@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { FiTrash2, FiMinus, FiPlus, FiArrowRight, FiShoppingBag, FiTag, FiTruck, FiHeart, FiClock } from "react-icons/fi";
+import { FiTrash2, FiMinus, FiPlus, FiArrowRight, FiShoppingBag, FiTag, FiTruck, FiHeart, FiClock, FiLoader } from "react-icons/fi";
 import { useCart, CartItem } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { Button } from "@/components/ui/Button";
@@ -10,19 +10,18 @@ import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { FaWhatsapp } from "react-icons/fa";
 
-const MOCK_COUPONS: Record<string, number> = {
-  "EVSTART10": 10,  // 10% discount
-  "SCOOT15": 15,    // 15% discount
-  "FREESHIP": 100,  // Free shipping (we'll handle differently or just flat discount)
-};
-
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, addToCart, cartSubtotal, cartCount } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
-  const [discountPercent, setDiscountPercent] = useState(0);
+  const [couponDescription, setCouponDescription] = useState("");
+  const [discountType, setDiscountType] = useState<"PERCENT" | "FLAT" | "FREESHIP">("PERCENT");
+  const [discountValue, setDiscountValue] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [isCouponFreeShip, setIsCouponFreeShip] = useState(false);
+  const [isCouponLoading, setIsCouponLoading] = useState(false);
   const [saveForLater, setSaveForLater] = useState<CartItem[]>([]);
 
   // Load Save For Later list
@@ -64,29 +63,50 @@ export default function CartPage() {
     toast.success("Item removed from Save for Later.");
   };
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = couponInput.trim().toUpperCase();
-    if (MOCK_COUPONS[code] !== undefined) {
-      setAppliedCoupon(code);
-      setDiscountPercent(MOCK_COUPONS[code]);
-      toast.success(`Coupon ${code} applied successfully!`);
-    } else {
-      toast.error("Invalid coupon code.");
+    if (!code) return;
+    setIsCouponLoading(true);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, orderAmount: cartSubtotal }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Invalid coupon code.");
+      } else {
+        setAppliedCoupon(data.code);
+        setDiscountType(data.discountType);
+        setDiscountValue(data.discountValue);
+        setDiscountAmount(data.discountAmount);
+        setIsCouponFreeShip(data.freeShipping);
+        setCouponDescription(data.description || "");
+        toast.success(`✓ Coupon ${data.code} applied! ${data.discountLabel}`);
+      }
+    } catch (err) {
+      toast.error("Failed to validate coupon. Please try again.");
+    } finally {
+      setIsCouponLoading(false);
     }
   };
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon("");
-    setDiscountPercent(0);
+    setDiscountType("PERCENT");
+    setDiscountValue(0);
+    setDiscountAmount(0);
+    setIsCouponFreeShip(false);
+    setCouponDescription("");
     setCouponInput("");
     toast.success("Coupon removed.");
   };
 
   // Calculations
-  const discountAmount = Math.round(cartSubtotal * (discountPercent / 100));
   const discountedSubtotal = cartSubtotal - discountAmount;
-  const shippingCost = discountedSubtotal > 5000 || appliedCoupon === "FREESHIP" ? 0 : 250;
+  const shippingCost = discountedSubtotal > 5000 || isCouponFreeShip ? 0 : 250;
   const estimatedTax = Math.round(discountedSubtotal * 0.18); // 18% GST on spare parts
   const totalCost = discountedSubtotal + shippingCost + estimatedTax;
 
@@ -278,20 +298,31 @@ export default function CartPage() {
             <div className="bg-surface border border-border rounded-xl p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-1.5"><FiTag className="text-primary"/> Apply Promo Coupon</h3>
               {appliedCoupon ? (
-                <div className="flex items-center justify-between p-2.5 bg-success/5 border border-success/20 rounded-lg text-success text-xs">
-                  <span>Coupon <strong>{appliedCoupon}</strong> ({discountPercent}% Off) Active</span>
-                  <button onClick={handleRemoveCoupon} className="font-semibold underline hover:text-danger">Remove</button>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between p-3 bg-success/5 border border-success/20 rounded-lg text-success text-xs">
+                    <div>
+                      <p className="font-bold">✓ {appliedCoupon} Applied</p>
+                      {couponDescription && <p className="opacity-80 mt-0.5">{couponDescription}</p>}
+                    </div>
+                    <button onClick={handleRemoveCoupon} className="text-text-muted font-semibold hover:text-danger underline ml-4 shrink-0">Remove</button>
+                  </div>
                 </div>
               ) : (
-                <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value)}
-                    placeholder="e.g. EVSTART10"
-                    className="flex-grow h-10 px-3 bg-background border border-border rounded-md text-xs text-text-primary uppercase focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  <Button type="submit" variant="outline" size="sm" className="h-10">Apply</Button>
+                <form onSubmit={handleApplyCoupon} className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value)}
+                      placeholder="e.g. SCOOT15, FLAT200"
+                      className="flex-grow h-10 px-3 bg-background border border-border rounded-md text-xs text-text-primary uppercase focus:outline-none focus:ring-1 focus:ring-primary"
+                      disabled={isCouponLoading}
+                    />
+                    <Button type="submit" variant="outline" size="sm" className="h-10 min-w-[70px]" disabled={isCouponLoading}>
+                      {isCouponLoading ? "..." : "Apply"}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-text-muted">Try: EVSTART10 · SCOOT15 · FREESHIP · FLAT200 · BIGBUY20</p>
                 </form>
               )}
             </div>
@@ -307,7 +338,11 @@ export default function CartPage() {
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-danger font-medium">
-                    <span>Coupon Discount ({discountPercent}%)</span>
+                    <span>
+                      {discountType === "PERCENT" ? `Coupon Discount (${discountValue}%)` :
+                       discountType === "FLAT" ? `Coupon Discount (₹${discountValue} off)` :
+                       "Coupon Discount"}
+                    </span>
                     <span>-{formatPrice(discountAmount)}</span>
                   </div>
                 )}
