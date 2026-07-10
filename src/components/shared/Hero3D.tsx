@@ -10,10 +10,13 @@ export function Hero3D() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isPreloaded, setIsPreloaded] = useState(false);
 
-  const heroRef      = useRef<HTMLDivElement>(null);
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
-  const textRef      = useRef<HTMLDivElement>(null);
-  const scrollDotRef = useRef<HTMLDivElement>(null);
+  const heroRef          = useRef<HTMLDivElement>(null);
+  const canvasRef        = useRef<HTMLCanvasElement>(null);
+  const textContainerRef = useRef<HTMLDivElement>(null);
+  const headingRef       = useRef<HTMLHeadingElement>(null);
+  const descRef          = useRef<HTMLParagraphElement>(null);
+  const buttonsRef       = useRef<HTMLDivElement>(null);
+  const scrollDotRef     = useRef<HTMLDivElement>(null);
 
   // Cache ImageBitmaps in memory
   const bitmapsRef   = useRef<ImageBitmap[]>([]);
@@ -47,7 +50,6 @@ export function Hero3D() {
           img.onload = resolve;
           img.onerror = reject;
         });
-        // Create fully decoded GPU-ready ImageBitmap representation
         const bitmap = await createImageBitmap(img);
         bitmaps[i] = bitmap;
       } catch (err) {
@@ -55,7 +57,6 @@ export function Hero3D() {
       }
 
       loaded++;
-      // Batch progress updates to avoid React render spam
       if (loaded % 10 === 0 || loaded === TOTAL) {
         setLoadingProgress(Math.round((loaded / TOTAL) * 100));
       }
@@ -96,7 +97,115 @@ export function Hero3D() {
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   }
 
-  // ── 4. GSAP ScrollTrigger — pinned over 160vh ──────────────────────────────
+  // ── Helper to change innerHTML safely without layout re-trigger ───────────
+  const lastHeadingHTML = useRef("");
+  function setHeadingText(el: HTMLElement, html: string) {
+    if (lastHeadingHTML.current === html) return;
+    lastHeadingHTML.current = html;
+    el.innerHTML = html;
+  }
+
+  // ── Synchronized Text Animation Controller (Direct DOM Updates) ───────────
+  function updateTextAndLayout(p: number) {
+    const heading = headingRef.current;
+    const desc = descRef.current;
+    const buttons = buttonsRef.current;
+    const textContainer = textContainerRef.current;
+    if (!heading || !desc || !buttons || !textContainer) return;
+
+    // ── State 1: 0% to 20% Scroll
+    // Heading scales slightly (1.0 -> 1.05), description fades to 80% (1.0 -> 0.8)
+    if (p <= 0.2) {
+      const t = p / 0.2;
+      heading.style.transform = `scale(${1 + 0.05 * t}) translate3d(0, 0, 0)`;
+      desc.style.opacity = `${1 - 0.2 * t}`;
+      
+      setHeadingText(heading, "Power Your<br /><span class='text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700'>Electric Ride</span>");
+      desc.textContent = "High-performance batteries, motors, controllers, chargers, brakes & accessories — delivered across India.";
+      
+      textContainer.style.opacity = "1";
+      buttons.style.opacity = "1";
+      buttons.style.pointerEvents = "auto";
+    }
+    // ── State 1.5: 20% to 40% Scroll
+    // Heading slides slightly upward. Description updates smoothly (fading container out ready for switch at 0.4)
+    else if (p > 0.2 && p <= 0.4) {
+      const t = (p - 0.2) / 0.2;
+      heading.style.transform = `scale(1.05) translate3d(0, ${-15 * t}px, 0)`;
+      
+      const fadeOut = Math.max(0, 1 - (p - 0.35) / 0.05); // fades out between 0.35 and 0.40
+      textContainer.style.opacity = `${fadeOut}`;
+      
+      setHeadingText(heading, "Power Your<br /><span class='text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700'>Electric Ride</span>");
+      desc.textContent = "High-performance batteries, motors, controllers, chargers, brakes & accessories — delivered across India.";
+      
+      buttons.style.opacity = `${fadeOut}`;
+      buttons.style.pointerEvents = fadeOut < 0.1 ? "none" : "auto";
+    }
+    // ── State 2: 40% to 60% Scroll
+    // Display: "Precision Engineered EV Components"
+    else if (p > 0.4 && p <= 0.6) {
+      const fadeIn = Math.min(1, (p - 0.4) / 0.05); // fades in between 0.40 and 0.45
+      textContainer.style.opacity = `${fadeIn}`;
+      
+      heading.style.transform = "translate3d(0, -15px, 0)";
+      setHeadingText(heading, "Precision Engineered<br /><span class='text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700'>EV Components</span>");
+      desc.textContent = "Every component is designed for maximum performance, durability, and reliability.";
+      
+      buttons.style.opacity = "0";
+      buttons.style.pointerEvents = "none";
+    }
+    // ── State 3: 60% to 80% Scroll
+    // Display: "Explore Every Part"
+    else if (p > 0.6 && p <= 0.8) {
+      let opacity = 1;
+      if (p <= 0.75) {
+        opacity = Math.max(0, 1 - (p - 0.70) / 0.05);
+      } else {
+        opacity = Math.min(1, (p - 0.75) / 0.05);
+      }
+      textContainer.style.opacity = `${opacity}`;
+
+      heading.style.transform = "translate3d(0, -15px, 0)";
+      
+      if (p > 0.75) {
+        setHeadingText(heading, "Explore<br /><span class='text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700'>Every Part</span>");
+        desc.textContent = "Every component is accessible, replaceable, and upgradable for your electric scooter.";
+      } else {
+        setHeadingText(heading, "Precision Engineered<br /><span class='text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700'>EV Components</span>");
+        desc.textContent = "Every component is designed for maximum performance, durability, and reliability.";
+      }
+
+      buttons.style.opacity = "0";
+      buttons.style.pointerEvents = "none";
+    }
+    // ── State 4: 80% to 100% Scroll
+    // Display: "Scroll to Discover Products"
+    else if (p > 0.8) {
+      let opacity = 1;
+      if (p <= 0.95) {
+        opacity = Math.max(0, 1 - (p - 0.90) / 0.05);
+      } else {
+        opacity = Math.min(1, (p - 0.95) / 0.05);
+      }
+      textContainer.style.opacity = `${opacity}`;
+
+      heading.style.transform = "translate3d(0, -15px, 0)";
+
+      if (p > 0.95) {
+        setHeadingText(heading, "Scroll to<br /><span class='text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700'>Discover Products</span>");
+        desc.textContent = "Release the explorer and view all parts categorised below.";
+      } else {
+        setHeadingText(heading, "Explore<br /><span class='text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700'>Every Part</span>");
+        desc.textContent = "Every component is accessible, replaceable, and upgradable for your electric scooter.";
+      }
+
+      buttons.style.opacity = "0";
+      buttons.style.pointerEvents = "none";
+    }
+  }
+
+  // ── 5. GSAP ScrollTrigger Setup ───────────────────────────────────────────
   useEffect(() => {
     if (!isPreloaded || !heroRef.current) return;
 
@@ -110,30 +219,25 @@ export function Hero3D() {
       scrollTrigger: {
         trigger: heroRef.current,
         start: "top top",
-        end: "+=120%",          // Shortened scroll depth: 120vh (1.2 screens)
+        end: "+=120%",          // 120vh scroll pin depth
         pin: true,
         anticipatePin: 1,
-        scrub: 0.1,             // extremely tight scroll sync
+        scrub: 0.1,
         invalidateOnRefresh: true,
       },
       onUpdate() {
-        if (rafRef.current !== null) return; // skip if a frame is already requested
+        if (rafRef.current !== null) return;
 
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = null;
           const p = proxy.p;
           const currentFrame = Math.round(p * (TOTAL - 1));
 
-          // ── Draw Frame ──
+          // ── Synchronized Canvas Frame ──
           renderFrame(currentFrame);
 
-          // ── Text Fade (0% -> 35% of scroll) ──
-          const txt = textRef.current;
-          if (txt) {
-            const tp = Math.min(1, p / 0.35);
-            txt.style.opacity   = `${1 - tp}`;
-            txt.style.transform = `translate3d(0,${-50 * tp}px,0)`;
-          }
+          // ── Synchronized Direct DOM Text Transitions ──
+          updateTextAndLayout(p);
 
           // ── Scroll indicator fade ──
           const dot = scrollDotRef.current;
@@ -149,7 +253,6 @@ export function Hero3D() {
       ScrollTrigger.getAll().forEach(t => t.kill());
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
 
-      // Close all ImageBitmaps to free GPU memory
       bitmapsRef.current.forEach(bitmap => {
         if (bitmap && typeof bitmap.close === "function") {
           bitmap.close();
@@ -210,9 +313,9 @@ export function Hero3D() {
       {/* Main layout */}
       <div className="relative z-10 h-full container mx-auto px-6 md:px-10 grid grid-cols-1 lg:grid-cols-12 items-center">
 
-        {/* Left Column: Headline */}
+        {/* Left Column: Headline Wrapper */}
         <div
-          ref={textRef}
+          ref={textContainerRef}
           className="lg:col-span-5 flex flex-col gap-7"
           style={{ willChange: "transform, opacity" }}
         >
@@ -221,19 +324,31 @@ export function Hero3D() {
             India&rsquo;s #1 EV Spare Parts
           </span>
 
-          <h1 className="font-display font-extrabold text-slate-900 leading-[1.08] tracking-tight text-[clamp(2.2rem,5vw,3.8rem)]">
+          <h1
+            ref={headingRef}
+            className="font-display font-extrabold text-slate-900 leading-[1.08] tracking-tight text-[clamp(2.2rem,5vw,3.8rem)]"
+            style={{ willChange: "transform" }}
+          >
             Power Your<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700">
               Electric Ride
             </span>
           </h1>
 
-          <p className="text-slate-700 text-[clamp(0.9rem,1.5vw,1.1rem)] leading-relaxed max-w-md">
+          <p
+            ref={descRef}
+            className="text-slate-700 text-[clamp(0.9rem,1.5vw,1.1rem)] leading-relaxed max-w-md"
+            style={{ willChange: "opacity" }}
+          >
             High-performance batteries, motors, controllers, chargers,
             brakes &amp; accessories — delivered across India.
           </p>
 
-          <div className="flex flex-wrap gap-3 pt-1">
+          <div
+            ref={buttonsRef}
+            className="flex flex-wrap gap-3 pt-1 transition-opacity duration-300"
+            style={{ willChange: "opacity" }}
+          >
             <Link
               href="/shop"
               className="inline-flex items-center justify-center px-7 rounded-full text-sm font-semibold bg-slate-900 hover:bg-slate-800 text-white transition-colors shadow-lg"
