@@ -40,11 +40,35 @@ const VEHICLE_DATA: Record<string, Record<string, Record<string, string[]>>> = {
 
 export function VehicleSelector({ onComplete }: { onComplete?: () => void }) {
   const { selectedVehicle, selectVehicle, clearVehicle } = useVehicle();
+  const [mounted, setMounted] = useState(false);
 
-  const [brand, setBrand] = useState(selectedVehicle?.brand || "");
-  const [model, setModel] = useState(selectedVehicle?.model || "");
-  const [variant, setVariant] = useState(selectedVehicle?.variant || "");
-  const [year, setYear] = useState(selectedVehicle?.year || "");
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [variant, setVariant] = useState("");
+  const [year, setYear] = useState("");
+
+  React.useEffect(() => {
+    setMounted(true);
+    if (selectedVehicle) {
+      setBrand(selectedVehicle.brand);
+      setModel(selectedVehicle.model);
+      setVariant(selectedVehicle.variant);
+      setYear(selectedVehicle.year);
+    } else {
+      setBrand("");
+      setModel("");
+      setVariant("");
+      setYear("");
+    }
+  }, [selectedVehicle]);
+
+  if (!mounted) {
+    return (
+      <div className="h-40 bg-surface-elevated animate-pulse rounded-lg border border-border flex items-center justify-center text-xs text-text-muted">
+        Loading selector...
+      </div>
+    );
+  }
 
   const brands = Object.keys(VEHICLE_DATA);
   const models = brand ? Object.keys(VEHICLE_DATA[brand] || {}) : [];

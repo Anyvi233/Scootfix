@@ -62,9 +62,15 @@ export function FilterSidebar({ className, onClose }: { className?: string; onCl
   const searchParams = useSearchParams();
   const { selectedVehicle, clearVehicle } = useVehicle();
   const [dbVehicles, setDbVehicles] = useState<any[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch db vehicle models for mapping strings to CUIDs
   useEffect(() => {
+    if (!mounted) return;
     const loadVehicles = async () => {
       try {
         const res = await fetch("/api/vehicles");
@@ -77,7 +83,15 @@ export function FilterSidebar({ className, onClose }: { className?: string; onCl
       }
     };
     loadVehicles();
-  }, []);
+  }, [mounted]);
+
+  if (!mounted) {
+    return (
+      <div className="w-full h-[500px] bg-surface-elevated animate-pulse rounded-xl border border-border flex items-center justify-center text-xs text-text-muted">
+        Loading filters...
+      </div>
+    );
+  }
 
   // Sync global selected vehicle to URL params for DB querying
   useEffect(() => {
