@@ -16,6 +16,7 @@ import { formatPrice, cn } from "@/lib/utils";
 import { FaWhatsapp } from "react-icons/fa";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { useVehicle } from "@/context/VehicleContext";
 
 interface Props {
   product: any;
@@ -26,6 +27,7 @@ export function ProductDetailsClient({ product }: Props) {
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const { selectedVehicle, isCompatible } = useVehicle();
 
   const discount = product.compareAtPrice
     ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
@@ -157,6 +159,41 @@ export function ProductDetailsClient({ product }: Props) {
             <Badge variant={product.stock > 0 ? "success" : "danger"} pulse={product.stock > 0}>
               {product.stock > 0 ? `In Stock (${product.stock} left)` : "Out of Stock"}
             </Badge>
+          </div>
+
+          {/* Vehicle Compatibility Banner */}
+          <div className="mb-6">
+            {selectedVehicle ? (
+              (() => {
+                const { compatible, reason } = isCompatible(product.compatibilities || []);
+                return (
+                  <div 
+                    className={cn(
+                      "p-4 rounded-xl border text-sm flex items-start gap-3",
+                      compatible 
+                        ? "bg-success/5 border-success/20 text-success" 
+                        : "bg-danger/5 border-danger/20 text-danger"
+                    )}
+                  >
+                    <span className="text-lg leading-none mt-0.5">{compatible ? "✓" : "⚠"}</span>
+                    <div>
+                      <p className="font-semibold">{compatible ? "Verified Fit" : "Compatibility Warning"}</p>
+                      <p className="text-xs opacity-90 mt-0.5">{reason}</p>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="p-4 rounded-xl border border-border bg-surface-elevated text-text-secondary text-sm flex items-start gap-3">
+                <span className="text-lg leading-none mt-0.5">ℹ</span>
+                <div>
+                  <p className="font-semibold">Check Compatibility</p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Select your scooter model in the shop filters sidebar to verify fit.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
 

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/Badge";
 import { formatPrice } from "@/lib/utils";
 
 
+import { useVehicle } from "@/context/VehicleContext";
+
 export interface ProductCardProps {
   id: string;
   name: string;
@@ -44,7 +46,7 @@ export function ProductCard({
   onToggleWishlist,
   isWishlisted,
 }: ProductCardProps) {
-
+  const { selectedVehicle, isCompatible } = useVehicle();
 
   const discount = compareAtPrice
     ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
@@ -69,6 +71,23 @@ export function ProductCard({
         )}
 
       </div>
+
+      {/* Compatibility Badge */}
+      {selectedVehicle && compatibilities && (
+        <div className="absolute top-3 left-3 z-10">
+          {(() => {
+            const { compatible, reason } = isCompatible(compatibilities);
+            return (
+              <Badge 
+                variant={compatible ? "success" : "warning"} 
+                className="px-2.5 py-1 text-[10px] font-bold shadow-md uppercase tracking-wider backdrop-blur-md bg-opacity-95"
+              >
+                {compatible ? `✓ Fits ${selectedVehicle.model}` : "⚠ Fits others"}
+              </Badge>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Wishlist Button */}
       <button

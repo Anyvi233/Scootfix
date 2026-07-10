@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FiChevronDown, FiChevronUp, FiFilter, FiX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-
-// Seeded data for filters
-
+import { useVehicle } from "@/context/VehicleContext";
+import { VehicleSelector } from "@/components/shared/VehicleSelector";
 
 const CATEGORIES = [
   "Bearings",
@@ -61,8 +60,66 @@ function FilterSection({ title, defaultOpen = true, children }: FilterSectionPro
 export function FilterSidebar({ className, onClose }: { className?: string; onClose?: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { selectedVehicle, clearVehicle } = useVehicle();
+  const [dbVehicles, setDbVehicles] = useState<any[]>([]);
 
-  // Parse current state from URL
+  // Fetch db vehicle models for mapping strings to CUIDs
+  useEffect(() => {
+    const loadVehicles = async () => {
+      try {
+        const res = await fetch("/api/vehicles");
+        if (res.ok) {
+          const data = await res.json();
+          setDbVehicles(data);
+        }
+      } catch (err) {
+        console.error("Failed to load DB vehicles", err);
+      }
+    };
+    loadVehicles();
+  }, []);
+
+  // Sync global selected vehicle to URL params for DB querying
+  useEffect(() => {
+    if (!selectedVehicle) {
+      const params = new URLSearchParams(searchParams.toString());
+      if (params.has("vehicleModelId") || params.has("year")) {
+        params.delete("vehicleModelId");
+        params.delete("year");
+        router.push(`/shop?${params.toString()}`);
+      }
+      return;
+    }
+
+    if (dbVehicles.length === 0) return;
+
+    // Find database brand match
+    const brandMatch = dbVehicles.find(
+      (b) => b.name.toLowerCase().includes(selectedVehicle.brand.toLowerCase()) ||
+             selectedVehicle.brand.toLowerCase().includes(b.name.toLowerCase())
+    );
+
+    if (brandMatch && brandMatch.vehicles) {
+      // Find database model match
+      const modelMatch = brandMatch.vehicles.find(
+        (v: any) => v.name.toLowerCase().includes(selectedVehicle.model.toLowerCase()) ||
+                   selectedVehicle.model.toLowerCase().includes(v.name.toLowerCase())
+      );
+
+      if (modelMatch) {
+        const params = new URLSearchParams(searchParams.toString());
+        const targetModelId = modelMatch.id;
+        const targetYear = selectedVehicle.year;
+
+        if (params.get("vehicleModelId") !== targetModelId || params.get("year") !== targetYear) {
+          params.set("vehicleModelId", targetModelId);
+          params.set("year", targetYear);
+          params.delete("page");
+          router.push(`/shop?${params.toString()}`);
+        }
+      }
+    }
+  }, [selectedVehicle, dbVehicles, searchParams, router]);
 
   const currentCategories = searchParams.get("categories")?.split(",") || [];
   const currentRating = searchParams.get("rating") || "";
@@ -73,7 +130,6 @@ export function FilterSidebar({ className, onClose }: { className?: string; onCl
   const inStock = searchParams.get("inStock") === "true";
   const hasDiscount = searchParams.get("discount") === "true";
 
-  // Helpers
   const updateParam = (key: string, value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value === null || value === "") {
@@ -81,7 +137,6 @@ export function FilterSidebar({ className, onClose }: { className?: string; onCl
     } else {
       params.set(key, value);
     }
-    // Reset to page 1 on filter change
     params.delete("page");
     router.push(`/shop?${params.toString()}`);
   };
@@ -107,6 +162,7 @@ export function FilterSidebar({ className, onClose }: { className?: string; onCl
   };
 
   const clearAll = () => {
+    clearVehicle();
     router.push("/shop");
   };
 
@@ -125,12 +181,17 @@ export function FilterSidebar({ className, onClose }: { className?: string; onCl
 
       <div className="flex items-center justify-between mb-6 hidden lg:flex">
         <h2 className="text-lg font-display font-bold">Filters</h2>
-        {(searchParams.toString().length > 0) && (
+        {(searchParams.toString().length > 0 || selectedVehicle) && (
           <button onClick={clearAll} className="text-sm text-primary hover:underline font-medium">
             Clear All
           </button>
         )}
       </div>
+
+      {/* Vehicle Compatibility Selector */}
+      <FilterSection title="Vehicle Compatibility" defaultOpen={true}>
+        <VehicleSelector />
+      </FilterSection>
 
       {/* Part Type (OEM vs Aftermarket) */}
       <FilterSection title="Part Origin" defaultOpen={true}>
@@ -174,9 +235,6 @@ export function FilterSidebar({ className, onClose }: { className?: string; onCl
           </label>
         ))}
       </FilterSection>
-
-
-
 
       {/* Rating */}
       <FilterSection title="Customer Rating" defaultOpen={false}>

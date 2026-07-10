@@ -13,7 +13,7 @@ interface VehicleContextType {
   selectedVehicle: SelectedVehicle | null;
   selectVehicle: (vehicle: SelectedVehicle) => void;
   clearVehicle: () => void;
-  isCompatible: (productCompatibility: { brand: string; model: string; years: string }[]) => { compatible: boolean; reason: string };
+  isCompatible: (productCompatibility: any[]) => { compatible: boolean; reason: string };
 }
 
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
@@ -44,26 +44,46 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Check if a product fits the selected vehicle
-  const isCompatible = (productCompatibility: { brand: string; model: string; years: string }[]) => {
+  const isCompatible = (productCompatibility: any[]) => {
     if (!selectedVehicle) {
       return { compatible: true, reason: "No vehicle selected" };
     }
 
     const match = productCompatibility.find((comp) => {
-      const brandMatch = comp.brand.toLowerCase() === selectedVehicle.brand.toLowerCase();
-      // Simple partial matching for models e.g., "450X" matching "450X (Gen 3)"
-      const modelMatch = selectedVehicle.model.toLowerCase().includes(comp.model.toLowerCase()) || 
-                         comp.model.toLowerCase().includes(selectedVehicle.model.toLowerCase());
+      let brandName = "";
+      let modelName = "";
+      let yearsString = "";
+
+      if (comp.vehicleModel) {
+        // Prisma DB format
+        brandName = comp.vehicleModel.brand?.name || "";
+        modelName = comp.vehicleModel.name || "";
+        const start = comp.yearStart || comp.vehicleModel.yearStart;
+        const end = comp.yearEnd || comp.vehicleModel.yearEnd || new Date().getFullYear();
+        yearsString = `${start}-${end}`;
+      } else {
+        // Fallback format
+        brandName = comp.brand || "";
+        modelName = comp.model || "";
+        yearsString = comp.years || "";
+      }
+
+      const brandMatch = brandName.toLowerCase().includes(selectedVehicle.brand.toLowerCase()) ||
+                         selectedVehicle.brand.toLowerCase().includes(brandName.toLowerCase());
+
+      const modelMatch = selectedVehicle.model.toLowerCase().includes(modelName.toLowerCase()) || 
+                         modelName.toLowerCase().includes(selectedVehicle.model.toLowerCase());
       
-      // Years check (e.g. "2020-2025" or "2022")
       let yearMatch = false;
       const vehicleYear = parseInt(selectedVehicle.year);
       
-      if (comp.years.includes("-")) {
-        const [start, end] = comp.years.split("-").map(y => parseInt(y.trim()));
+      if (yearsString.includes("-")) {
+        const [start, end] = yearsString.split("-").map(y => parseInt(y.trim()));
         yearMatch = vehicleYear >= start && vehicleYear <= (end || new Date().getFullYear());
+      } else if (yearsString) {
+        yearMatch = parseInt(yearsString.trim()) === vehicleYear;
       } else {
-        yearMatch = parseInt(comp.years.trim()) === vehicleYear;
+        yearMatch = true;
       }
 
       return brandMatch && modelMatch && yearMatch;

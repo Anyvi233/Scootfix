@@ -35,6 +35,21 @@ export class ProductRepository {
           },
           category: { select: { name: true, slug: true } },
           brand: { select: { name: true, slug: true } },
+          compatibilities: {
+            select: {
+              yearStart: true,
+              yearEnd: true,
+              notes: true,
+              vehicleModel: {
+                select: {
+                  name: true,
+                  yearStart: true,
+                  yearEnd: true,
+                  brand: { select: { name: true } },
+                },
+              },
+            },
+          },
           _count: { select: { reviews: true } },
         },
         orderBy,
