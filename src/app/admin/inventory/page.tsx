@@ -5,18 +5,29 @@ import Image from "next/image";
 import { formatPrice, cn } from "@/lib/utils";
 import { 
   FiAlertTriangle, FiCheckCircle, FiClock, FiSearch, 
-  FiRefreshCw, FiTrendingUp, FiArchive, FiX 
+  FiRefreshCw, FiTrendingUp, FiArchive, FiX, FiPlus, FiArrowDownLeft
 } from "react-icons/fi";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "react-hot-toast";
 
 export default function InventoryDashboard() {
   const [inventory, setInventory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
+
+  // Restock Form States
+  const [isRestockOpen, setIsRestockOpen] = useState(false);
+  const [restockProductId, setRestockProductId] = useState("");
+  const [restockQty, setRestockQty] = useState("10");
+  const [restockReason, setRestockReason] = useState("Supplier Shipment");
+  const [restockSupplier, setRestockSupplier] = useState("");
+  const [restockCost, setRestockCost] = useState("");
+  const [restockPrice, setRestockPrice] = useState("");
+  const [isSubmittingRestock, setIsSubmittingRestock] = useState(false);
 
   const fetchInventory = async () => {
     setIsLoading(true);
@@ -39,6 +50,66 @@ export default function InventoryDashboard() {
     fetchInventory();
   }, []);
 
+  const openRestockModal = (product?: any) => {
+    if (product) {
+      setRestockProductId(product.id);
+      setRestockSupplier(product.supplier || "");
+      setRestockCost(String(product.purchasePrice || ""));
+      setRestockPrice(String(product.price || ""));
+      setRestockReason("Supplier Shipment");
+    } else {
+      setRestockProductId("");
+      setRestockSupplier("");
+      setRestockCost("");
+      setRestockPrice("");
+      setRestockReason("Supplier Shipment");
+    }
+    setRestockQty("10");
+    setIsRestockOpen(true);
+  };
+
+  const handleRestockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restockProductId) {
+      toast.error("Please select a product.");
+      return;
+    }
+    const change = parseInt(restockQty);
+    if (isNaN(change) || change === 0) {
+      toast.error("Please enter a valid non-zero quantity.");
+      return;
+    }
+
+    setIsSubmittingRestock(true);
+    try {
+      const res = await fetch("/api/admin/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: restockProductId,
+          change,
+          reason: restockReason,
+          supplier: restockSupplier || undefined,
+          purchasePrice: restockCost ? parseFloat(restockCost) : undefined,
+          price: restockPrice ? parseFloat(restockPrice) : undefined,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to adjust stock.");
+      }
+
+      toast.success("Inventory adjusted successfully!");
+      setIsRestockOpen(false);
+      fetchInventory();
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    } finally {
+      setIsSubmittingRestock(false);
+    }
+  };
+
   const filteredInventory = inventory.filter(item => 
     item.name.toLowerCase().includes(search.toLowerCase()) || 
     item.sku.toLowerCase().includes(search.toLowerCase()) ||
@@ -59,7 +130,7 @@ export default function InventoryDashboard() {
           <Button variant="outline" onClick={fetchInventory} disabled={isLoading} leftIcon={<FiRefreshCw className={isLoading ? "animate-spin" : ""} />}>
             Refresh
           </Button>
-          <Button variant="primary">Restock Item</Button>
+          <Button variant="primary" onClick={() => openRestockModal()}>Restock Item</Button>
         </div>
       </div>
 
@@ -182,13 +253,22 @@ export default function InventoryDashboard() {
                       </td>
                       
                       <td className="px-6 py-4 text-center">
-                        <button 
-                          onClick={() => setSelectedHistory(item)}
-                          className="p-2 text-text-muted hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
-                          title="View Stock History"
-                        >
-                          <FiClock size={18} />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button 
+                            onClick={() => openRestockModal(item)}
+                            className="p-2 text-text-muted hover:text-success hover:bg-success/10 rounded-full transition-colors"
+                            title="Adjust Stock / Restock"
+                          >
+                            <FiPlus size={18} />
+                          </button>
+                          <button 
+                            onClick={() => setSelectedHistory(item)}
+                            className="p-2 text-text-muted hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
+                            title="View Stock History"
+                          >
+                            <FiClock size={18} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -258,6 +338,165 @@ export default function InventoryDashboard() {
                   )}
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Restock/Stock Adjustment Modal Overlay */}
+      <AnimatePresence>
+        {isRestockOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+              onClick={() => setIsRestockOpen(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-surface border border-border shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="flex justify-between items-center p-5 border-b border-border bg-background-elevated">
+                <div>
+                  <h3 className="font-bold text-text-primary">Adjust Stock / Restock</h3>
+                  <p className="text-xs text-text-secondary">Perform warehouse inventory adjustments and price overrides.</p>
+                </div>
+                <button 
+                  onClick={() => setIsRestockOpen(false)}
+                  className="p-2 text-text-secondary hover:text-danger rounded-full hover:bg-danger/10 transition-colors"
+                >
+                  <FiX size={20} />
+                </button>
+              </div>
+              
+              <form onSubmit={handleRestockSubmit} className="p-5 space-y-4 overflow-y-auto">
+                {/* Product Dropdown/Selector */}
+                {!inventory.find(p => p.id === restockProductId) ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary uppercase mb-2">Select Product</label>
+                    <select 
+                      value={restockProductId}
+                      onChange={(e) => {
+                        const prod = inventory.find(p => p.id === e.target.value);
+                        if (prod) {
+                          setRestockProductId(prod.id);
+                          setRestockSupplier(prod.supplier || "");
+                          setRestockCost(String(prod.purchasePrice || ""));
+                          setRestockPrice(String(prod.price || ""));
+                        }
+                      }}
+                      required
+                      className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm text-text-primary focus:outline-none"
+                    >
+                      <option value="">-- Choose Product --</option>
+                      {inventory.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="p-3.5 bg-background-elevated border border-border rounded-xl flex justify-between items-center">
+                    <div>
+                      <span className="block text-[10px] font-bold text-text-muted uppercase">Selected Product</span>
+                      <span className="font-semibold text-sm text-text-primary line-clamp-1 max-w-[280px]">
+                        {inventory.find(p => p.id === restockProductId)?.name}
+                      </span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setRestockProductId("")}
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
+                      Change
+                    </button>
+                  </div>
+                )}
+
+                {/* Adjustment Count */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary uppercase mb-2">Quantity Change</label>
+                    <input 
+                      type="number"
+                      value={restockQty}
+                      onChange={(e) => setRestockQty(e.target.value)}
+                      required
+                      className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm text-text-primary focus:outline-none"
+                      placeholder="e.g. 10 or -3"
+                    />
+                    <span className="text-[10px] text-text-muted mt-1 block">Positive for restock, negative for write-off.</span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary uppercase mb-2">Adjustment Reason</label>
+                    <select
+                      value={restockReason}
+                      onChange={(e) => setRestockReason(e.target.value)}
+                      required
+                      className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm text-text-primary focus:outline-none"
+                    >
+                      <option value="Supplier Shipment">Supplier Shipment</option>
+                      <option value="Inventory Audit">Inventory Audit</option>
+                      <option value="Damaged Item">Damaged / Written off</option>
+                      <option value="Customer Return">Customer Return</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Price Details */}
+                <div className="border-t border-border pt-4 mt-2 space-y-3">
+                  <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider">Overrides & Supplier Details</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary uppercase mb-2">Supplier Name</label>
+                      <input 
+                        type="text"
+                        value={restockSupplier}
+                        onChange={(e) => setRestockSupplier(e.target.value)}
+                        className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm text-text-primary focus:outline-none"
+                        placeholder="e.g. Ather Genuine OEM"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary uppercase mb-2">Cost Price (₹)</label>
+                      <input 
+                        type="number"
+                        step="0.01"
+                        value={restockCost}
+                        onChange={(e) => setRestockCost(e.target.value)}
+                        className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm text-text-primary focus:outline-none"
+                        placeholder="e.g. 1500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary uppercase mb-2">Selling Price (₹)</label>
+                    <input 
+                      type="number"
+                      step="0.01"
+                      value={restockPrice}
+                      onChange={(e) => setRestockPrice(e.target.value)}
+                      className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm text-text-primary focus:outline-none"
+                      placeholder="e.g. 2100"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 pt-3 border-t border-border mt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsRestockOpen(false)} disabled={isSubmittingRestock}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="primary" isLoading={isSubmittingRestock}>
+                    Apply Adjustment
+                  </Button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
