@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FiShoppingBag, FiChevronDown, FiChevronUp, FiArrowRight } from "react-icons/fi";
+import { FiShoppingBag, FiChevronDown, FiChevronUp, FiArrowRight, FiPrinter, FiFileText } from "react-icons/fi";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { OrderTracker, OrderStatus } from "@/components/shared/OrderTracker";
@@ -35,6 +35,400 @@ export default function AdminOrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const handlePrintInvoice = (o: any) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Popup blocker prevented printing. Please allow popups.");
+      return;
+    }
+
+    const itemsHtml = (o.items || [])
+      .map((item: any, idx: number) => {
+        const itemSubtotal = item.price * item.quantity;
+        return `
+          <tr style="border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+            <td style="padding: 12px 8px; text-align: left; color: #1e293b;">${idx + 1}</td>
+            <td style="padding: 12px 8px; text-align: left; color: #1e293b; font-weight: 500;">${item.name}</td>
+            <td style="padding: 12px 8px; text-align: center; color: #475569;">${item.quantity}</td>
+            <td style="padding: 12px 8px; text-align: right; color: #475569;">₹${item.price.toLocaleString("en-IN")}</td>
+            <td style="padding: 12px 8px; text-align: right; color: #1e293b; font-weight: 600;">₹${itemSubtotal.toLocaleString("en-IN")}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const dateStr = new Date(o.createdAt).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+
+    const address = o.shippingAddress || {};
+    const addressHtml = `
+      <strong>${address.firstName || ""} ${address.lastName || ""}</strong><br />
+      ${address.street || ""}<br />
+      ${address.city || ""}, ${address.state || ""} – ${address.zip || ""}<br />
+      Phone: ${address.phone || "N/A"}<br />
+      Email: ${o.user?.email || "N/A"}
+    `;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice - ${o.orderNumber}</title>
+        <meta charset="utf-8" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;8500&display=swap" rel="stylesheet" />
+        <style>
+          body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 40px;
+            color: #1e293b;
+            background: #ffffff;
+            -webkit-print-color-adjust: exact;
+          }
+          .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+          }
+          .address-section {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+          }
+          .address-cell {
+            width: 50%;
+            vertical-align: top;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #475569;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          .items-table th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 12px 8px;
+            border-bottom: 2px solid #e2e8f0;
+          }
+          .summary-table {
+            width: 320px;
+            margin-left: auto;
+            border-collapse: collapse;
+            font-size: 14px;
+          }
+          .summary-table td {
+            padding: 8px 4px;
+          }
+          .summary-label {
+            color: #64748b;
+            text-align: left;
+          }
+          .summary-val {
+            color: #1e293b;
+            text-align: right;
+            font-weight: 500;
+          }
+          .summary-total {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            border-t: 2px solid #e2e8f0;
+            padding-top: 12px !important;
+          }
+          .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          .badge-paid {
+            background-color: #dcfce7;
+            color: #15803d;
+          }
+          @media print {
+            body {
+              padding: 0;
+            }
+            .no-print {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Header -->
+        <table class="header-table">
+          <tr>
+            <td style="vertical-align: middle;">
+              <span style="font-size: 24px; font-weight: 800; color: #0f172a; tracking: -0.02em;">SCOOT<span style="color: #2563eb;">FIX</span></span>
+              <p style="font-size: 11px; color: #64748b; margin: 4px 0 0 0; font-weight: 500;">Premium EV Spares & Upgrades</p>
+            </td>
+            <td style="text-align: right; vertical-align: middle;">
+              <h2 style="margin: 0; font-size: 22px; font-weight: 700; color: #0f172a;">TAX INVOICE</h2>
+              <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">Invoice #: <strong>${o.orderNumber}</strong></p>
+              <p style="font-size: 12px; color: #64748b; margin: 2px 0 0 0;">Date: ${dateStr}</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Addresses -->
+        <table class="address-section">
+          <tr>
+            <td class="address-cell">
+              <span style="font-size: 11px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Seller Details</span>
+              <strong>ScootFix EV Spares Pvt. Ltd.</strong><br />
+              Plot 45, Sector 4, HSR Layout<br />
+              Bangalore, Karnataka – 560102<br />
+              GSTIN: 29AASCS0932F1ZP<br />
+              Contact: warehouse@scootfix.com
+            </td>
+            <td class="address-cell" style="padding-left: 40px; border-left: 1px solid #e2e8f0;">
+              <span style="font-size: 11px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Billed & Shipped To</span>
+              ${addressHtml}
+            </td>
+          </tr>
+        </table>
+
+        <!-- Items Table -->
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 60px;">#</th>
+              <th style="text-align: left;">Item Description</th>
+              <th style="width: 80px; text-align: center;">Qty</th>
+              <th style="width: 120px; text-align: right;">Unit Price</th>
+              <th style="width: 120px; text-align: right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+
+        <!-- Summary & Totals -->
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="vertical-align: top; font-size: 12px; color: #64748b; line-height: 1.6;">
+              <span style="font-weight: 700; color: #0f172a; display: block; margin-bottom: 4px;">Payment Method</span>
+              ${o.paymentMethod || "Online Transfer"} (Prepaid)<br />
+              Status: <span class="badge badge-paid">PAID</span>
+              ${o.notes ? `<div style="margin-top: 16px;"><strong>Notes:</strong> ${o.notes}</div>` : ""}
+            </td>
+            <td style="vertical-align: top; text-align: right;">
+              <table class="summary-table">
+                <tr>
+                  <td class="summary-label">Subtotal</td>
+                  <td class="summary-val">₹${o.subtotal.toLocaleString("en-IN")}</td>
+                </tr>
+                <tr>
+                  <td class="summary-label">GST (18%)</td>
+                  <td class="summary-val">₹${o.tax.toLocaleString("en-IN")}</td>
+                </tr>
+                <tr>
+                  <td class="summary-label">Shipping</td>
+                  <td class="summary-val">${o.shipping === 0 ? "FREE" : `₹${o.shipping.toLocaleString("en-IN")}`}</td>
+                </tr>
+                <tr class="summary-total">
+                  <td style="font-weight: 700; padding-top: 12px;">Total Due</td>
+                  <td style="font-weight: 800; color: #2563eb; text-align: right; padding-top: 12px;">₹${o.total.toLocaleString("en-IN")}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <div style="margin-top: 80px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; font-size: 11px; color: #94a3b8; line-height: 1.5;">
+          This is a computer-generated tax invoice and requires no physical signature. Thank you for your business!<br />
+          For installation guides and parts compatibility help, visit <strong>scootfix.com/guides</strong>.
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  };
+
+  const handlePrintLabel = (o: any) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Popup blocker prevented printing. Please allow popups.");
+      return;
+    }
+
+    const dateStr = new Date(o.createdAt).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+
+    const address = o.shippingAddress || {};
+    const deliveryName = `${address.firstName || ""} ${address.lastName || ""}`.toUpperCase();
+
+    const barcodeBars = Array.from({ length: 42 })
+      .map(() => {
+        const width = Math.floor(Math.random() * 4) + 1;
+        const isSpace = Math.random() > 0.55;
+        return `<div style="width: ${width}px; background-color: ${isSpace ? "transparent" : "#000000"}; height: 60px; float: left;"></div>`;
+      })
+      .join("");
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Shipping Label - ${o.orderNumber}</title>
+        <meta charset="utf-8" />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+        <style>
+          body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #ffffff;
+            color: #000000;
+            display: flex;
+            justify-content: center;
+          }
+          .label-container {
+            width: 380px;
+            border: 3px solid #000000;
+            padding: 16px;
+            box-sizing: border-box;
+          }
+          .border-bottom {
+            border-bottom: 2px dashed #000000;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+          }
+          .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .routing-code {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            border: 2px solid #000000;
+            padding: 4px 8px;
+            line-height: 1;
+          }
+          .address-title {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+            color: #555555;
+          }
+          .address-body {
+            font-size: 13px;
+            line-height: 1.5;
+          }
+          .delivery-name {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 6px;
+          }
+          .barcode-container {
+            margin: 16px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+          .barcode-graphic {
+            height: 60px;
+            overflow: hidden;
+            margin-bottom: 6px;
+          }
+          .barcode-text {
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+          }
+          @media print {
+            body {
+              padding: 0;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="label-container">
+          <div class="border-bottom header-row">
+            <div>
+              <span style="font-size: 18px; font-weight: 800;">SCOOT<span style="text-decoration: underline;">FIX</span></span>
+              <p style="font-size: 9px; margin: 2px 0 0 0; font-weight: 600; letter-spacing: 0.05em;">EXPRESS LOGISTICS</p>
+            </div>
+            <div class="routing-code">EV-IN-94</div>
+          </div>
+
+          <div class="border-bottom" style="font-size: 10px; line-height: 1.4; color: #333333;">
+            <div class="address-title">Return Address</div>
+            <strong>ScootFix Dispatch Facility</strong>, Plot 45, Sector 4, HSR Layout, Bangalore, KA – 560102
+          </div>
+
+          <div class="border-bottom" style="min-height: 100px;">
+            <div class="address-title">Deliver To</div>
+            <div class="address-body">
+              <div class="delivery-name">${deliveryName}</div>
+              ${address.street || ""}<br />
+              ${address.city || ""}, ${address.state || ""}<br />
+              <strong>PIN: ${address.zip || ""}</strong><br />
+              Phone: ${address.phone || ""}
+            </div>
+          </div>
+
+          <div class="barcode-container border-bottom">
+            <div class="barcode-graphic">
+              ${barcodeBars}
+            </div>
+            <span class="barcode-text">*${o.orderNumber.toUpperCase()}*</span>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600;">
+            <div>
+              ORDER: #${o.orderNumber}<br />
+              DATE: ${dateStr}
+            </div>
+            <div style="text-align: right;">
+              WEIGHT: 1.25 KG<br />
+              METHOD: STANDARD
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  };
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -223,12 +617,32 @@ export default function AdminOrdersPage() {
 
                       {/* Shipping address */}
                       {o.shippingAddress && (
-                        <div className="mt-5 pt-5 border-t border-border">
-                          <h3 className="text-[10px] uppercase font-bold tracking-widest text-text-muted mb-2">Ship To</h3>
-                          <p className="text-sm text-text-secondary">
-                            {o.shippingAddress.firstName} {o.shippingAddress.lastName} &bull; {o.shippingAddress.phone || ""}<br />
-                            {o.shippingAddress.street}, {o.shippingAddress.city}, {o.shippingAddress.state} – {o.shippingAddress.zip}
-                          </p>
+                        <div className="mt-5 pt-5 border-t border-border flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                          <div>
+                            <h3 className="text-[10px] uppercase font-bold tracking-widest text-text-muted mb-2">Ship To</h3>
+                            <p className="text-sm text-text-secondary">
+                              {o.shippingAddress.firstName} {o.shippingAddress.lastName} &bull; {o.shippingAddress.phone || ""}<br />
+                              {o.shippingAddress.street}, {o.shippingAddress.city}, {o.shippingAddress.state} – {o.shippingAddress.zip}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handlePrintInvoice(o)}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface-elevated hover:bg-border border border-border text-text-primary text-xs font-semibold rounded-lg transition-colors"
+                              title="Print Tax Invoice"
+                            >
+                              <FiPrinter size={14} />
+                              <span>Invoice</span>
+                            </button>
+                            <button
+                              onClick={() => handlePrintLabel(o)}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface-elevated hover:bg-border border border-border text-text-primary text-xs font-semibold rounded-lg transition-colors"
+                              title="Print Shipping Label"
+                            >
+                              <FiFileText size={14} />
+                              <span>Shipping Label</span>
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
