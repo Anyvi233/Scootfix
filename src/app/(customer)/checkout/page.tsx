@@ -102,8 +102,12 @@ export default function CheckoutPage() {
   const selectedDelivery = DELIVERY_OPTIONS.find((o) => o.id === deliveryOption);
   const rawShipping = selectedDelivery ? selectedDelivery.price : 0;
   const shippingCost = (discountedSubtotal > 5000 || isCouponFreeShip) && deliveryOption === "standard" ? 0 : rawShipping;
+  // GST — only active when a real GSTIN is configured in .env
+  const gstNumber = process.env.NEXT_PUBLIC_GST_NUMBER || "";
+  const gstRate = Number(process.env.NEXT_PUBLIC_GST_RATE || 18);
+
   const codFee = paymentMethod === "cod" ? 50 : 0;
-  const estimatedTax = Math.round((discountedSubtotal + shippingCost + codFee) * 0.18); // 18% GST
+  const estimatedTax = gstNumber ? Math.round((discountedSubtotal + shippingCost + codFee) * (gstRate / 100)) : 0;
   const totalCost = discountedSubtotal + shippingCost + codFee + estimatedTax;
 
   const handleAddressSubmit = (e: React.FormEvent) => {
@@ -598,10 +602,18 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              <div className="flex justify-between text-text-secondary">
-                <span>Estimated GST (18%)</span>
-                <span className="text-text-primary font-medium">{formatPrice(estimatedTax)}</span>
-              </div>
+              {gstNumber && (
+                <div className="flex justify-between text-text-secondary">
+                  <span>Estimated GST ({gstRate}%)</span>
+                  <span className="text-text-primary font-medium">{formatPrice(estimatedTax)}</span>
+                </div>
+              )}
+              {!gstNumber && (
+                <div className="flex justify-between text-text-secondary">
+                  <span>Taxes &amp; Fees</span>
+                  <span className="text-text-primary font-medium">Incl. in price</span>
+                </div>
+              )}
               
               <div className="flex justify-between text-text-secondary">
                 <span>Shipping</span>

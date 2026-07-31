@@ -139,8 +139,8 @@ function buildOrderEmailHtml(data: OrderEmailData): string {
                   <td style="padding:5px 0;font-size:13px;color:#1e293b;text-align:right;font-weight:500;">₹${subtotal.toLocaleString("en-IN")}</td>
                 </tr>
                 <tr>
-                  <td style="padding:5px 0;font-size:13px;color:#64748b;">GST (18%)</td>
-                  <td style="padding:5px 0;font-size:13px;color:#1e293b;text-align:right;font-weight:500;">₹${tax.toLocaleString("en-IN")}</td>
+                  <td style="padding:5px 0;font-size:13px;color:#64748b;">${process.env.NEXT_PUBLIC_GST_NUMBER ? `GST (${process.env.NEXT_PUBLIC_GST_RATE || 18}%)` : 'Taxes &amp; Fees'}</td>
+                  <td style="padding:5px 0;font-size:13px;color:#1e293b;text-align:right;font-weight:500;">${process.env.NEXT_PUBLIC_GST_NUMBER ? `₹${tax.toLocaleString("en-IN")}` : 'Incl. in price'}</td>
                 </tr>
                 <tr>
                   <td style="padding:5px 0;font-size:13px;color:#64748b;">Shipping</td>

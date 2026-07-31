@@ -130,10 +130,14 @@ export default function CartPage() {
     toast.success("Coupon removed.");
   };
 
+  // GST — only active when a real GSTIN is configured in .env
+  const gstNumber = process.env.NEXT_PUBLIC_GST_NUMBER || "";
+  const gstRate = Number(process.env.NEXT_PUBLIC_GST_RATE || 18);
+
   // Calculations
   const discountedSubtotal = cartSubtotal - discountAmount;
   const shippingCost = discountedSubtotal > 5000 || isCouponFreeShip ? 0 : 250;
-  const estimatedTax = Math.round(discountedSubtotal * 0.18); // 18% GST on spare parts
+  const estimatedTax = gstNumber ? Math.round(discountedSubtotal * (gstRate / 100)) : 0;
   const totalCost = discountedSubtotal + shippingCost + estimatedTax;
 
   // Estimated delivery dates (Current date + 3 to 5 days)
@@ -380,10 +384,18 @@ export default function CartPage() {
                     <span>-{formatPrice(discountAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-text-secondary">
-                  <span>Estimated GST (18%)</span>
-                  <span className="text-text-primary font-medium">{formatPrice(estimatedTax)}</span>
-                </div>
+                {gstNumber && (
+                  <div className="flex justify-between text-text-secondary">
+                    <span>Estimated GST ({gstRate}%)</span>
+                    <span className="text-text-primary font-medium">{formatPrice(estimatedTax)}</span>
+                  </div>
+                )}
+                {!gstNumber && (
+                  <div className="flex justify-between text-text-secondary">
+                    <span>Taxes &amp; Fees</span>
+                    <span className="text-text-primary font-medium">Incl. in price</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-text-secondary">
                   <span>Shipping</span>
                   <span className="text-text-primary font-medium">

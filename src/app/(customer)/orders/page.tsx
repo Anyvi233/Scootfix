@@ -219,7 +219,7 @@ export default function OrdersPage() {
               <strong>ScootFix EV Spares Pvt. Ltd.</strong><br />
               Plot 45, Sector 4, HSR Layout<br />
               Bangalore, Karnataka – 560102<br />
-              GSTIN: 29AASCS0932F1ZP<br />
+              ${process.env.NEXT_PUBLIC_GST_NUMBER ? `GSTIN: ${process.env.NEXT_PUBLIC_GST_NUMBER}<br />` : ""}
               Contact: warehouse@scootfix.com
             </td>
             <td class="address-cell" style="padding-left: 40px; border-left: 1px solid #e2e8f0;">
@@ -261,8 +261,8 @@ export default function OrdersPage() {
                   <td class="summary-val">₹${o.subtotal.toLocaleString("en-IN")}</td>
                 </tr>
                 <tr>
-                  <td class="summary-label">GST (18%)</td>
-                  <td class="summary-val">₹${o.tax.toLocaleString("en-IN")}</td>
+                  <td class="summary-label">${process.env.NEXT_PUBLIC_GST_NUMBER ? `GST (${process.env.NEXT_PUBLIC_GST_RATE || 18}%)` : 'Taxes & Fees'}</td>
+                  <td class="summary-val">${process.env.NEXT_PUBLIC_GST_NUMBER ? `₹${o.tax.toLocaleString('en-IN')}` : 'Incl. in price'}</td>
                 </tr>
                 <tr>
                   <td class="summary-label">Shipping</td>

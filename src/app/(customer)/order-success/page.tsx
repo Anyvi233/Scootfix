@@ -86,7 +86,9 @@ export default function OrderSuccessPage() {
           <div>
             <h2 className="text-xl font-display font-bold text-text-primary print:text-black">ScootFix Spares</h2>
             <p className="text-xs text-text-secondary mt-1">123 Tech Park, HSR Layout, Bengaluru - 560102</p>
-            <p className="text-xs text-text-secondary">GSTIN: 29AAAAA0000A1Z5</p>
+            {process.env.NEXT_PUBLIC_GST_NUMBER && (
+              <p className="text-xs text-text-secondary">GSTIN: {process.env.NEXT_PUBLIC_GST_NUMBER}</p>
+            )}
           </div>
           <div className="text-right">
             <h3 className="text-lg font-mono font-bold text-text-primary print:text-black">INVOICE</h3>
@@ -155,10 +157,17 @@ export default function OrderSuccessPage() {
               <span>{formatPrice(invoice.codFee)}</span>
             </div>
           )}
-          <div className="w-64 flex justify-between text-text-secondary">
-            <span>GST (18%):</span>
-            <span>{formatPrice(invoice.tax)}</span>
-          </div>
+          {process.env.NEXT_PUBLIC_GST_NUMBER ? (
+            <div className="w-64 flex justify-between text-text-secondary">
+              <span>GST ({process.env.NEXT_PUBLIC_GST_RATE || 18}%):</span>
+              <span>{formatPrice(invoice.tax)}</span>
+            </div>
+          ) : (
+            <div className="w-64 flex justify-between text-text-secondary">
+              <span>Taxes &amp; Fees:</span>
+              <span>Incl. in price</span>
+            </div>
+          )}
           <div className="w-64 flex justify-between border-t border-border pt-2 font-bold text-base text-text-primary">
             <span>Amount Due:</span>
             <span>{formatPrice(invoice.total)}</span>
