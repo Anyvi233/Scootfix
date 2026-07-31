@@ -49,7 +49,7 @@ export default function ContactPage() {
             </div>
             <div>
               <h4 className="font-semibold text-text-primary text-sm">Call Support</h4>
-              <p className="text-sm text-text-secondary mt-1">+91 98765 43210</p>
+              <p className="text-sm text-text-secondary mt-1">+91 79077 04541</p>
               <p className="text-xs text-text-muted mt-0.5">Mon - Sat, 9 AM - 6 PM</p>
             </div>
           </div>

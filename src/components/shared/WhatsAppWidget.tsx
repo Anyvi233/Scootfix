@@ -6,7 +6,7 @@ import { FaWhatsapp } from "react-icons/fa";
 export function WhatsAppWidget() {
   const handleClick = () => {
     const message = "Hi Scootfix EV, I would like to contact you regarding EV spare parts & chargers.";
-    window.open(`https://wa.me/919744727070?text=${encodeURIComponent(message)}`, "_blank");
+    window.open(`https://wa.me/917907704541?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   return (

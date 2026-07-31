@@ -9,8 +9,8 @@ import { useVehicle } from "@/context/VehicleContext";
 
 // Mock address book
 const MOCK_ADDRESSES = [
-  { id: 1, type: "Home", name: "Anu V.", phone: "+91 9876543210", address: "123 Green Valley, Sector 45", city: "Bengaluru", state: "Karnataka", zip: "560001", default: true },
-  { id: 2, type: "Work", name: "Anu V.", phone: "+91 9876543210", address: "Tech Hub, Block C, 4th Floor", city: "Bengaluru", state: "Karnataka", zip: "560103", default: false }
+  { id: 1, type: "Home", name: "Anu V.", phone: "+91 79077 04541", address: "123 Green Valley, Sector 45", city: "Bengaluru", state: "Karnataka", zip: "560001", default: true },
+  { id: 2, type: "Work", name: "Anu V.", phone: "+91 79077 04541", address: "Tech Hub, Block C, 4th Floor", city: "Bengaluru", state: "Karnataka", zip: "560103", default: false }
 ];
 
 export default function ProfilePage() {
@@ -62,7 +62,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center gap-3 text-text-secondary">
               <FiPhone className="text-text-muted" />
-              <span>+91 98765 43210</span>
+              <span>+91 79077 04541</span>
             </div>
           </div>
 

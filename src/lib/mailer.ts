@@ -197,7 +197,7 @@ function buildOrderEmailHtml(data: OrderEmailData): string {
           <tr>
             <td style="background:#1e293b;border-radius:0 0 16px 16px;padding:28px 40px;text-align:center;">
               <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.7;">
-                Questions? Reply to this email or WhatsApp us at <strong style="color:#60a5fa;">+91 98765 43210</strong><br/>
+                Questions? Reply to this email or WhatsApp us at <strong style="color:#60a5fa;">+91 79077 04541</strong><br/>
                 <span style="font-size:11px;">ScootFix EV Spares · Plot 45, HSR Layout, Bangalore – 560102</span>
               </p>
               <p style="margin:16px 0 0;font-size:11px;color:#475569;">
@@ -337,7 +337,7 @@ function buildAbandonedCartHtml(data: AbandonedCartEmailData): string {
           <tr>
             <td style="background:#1e293b;border-radius:0 0 16px 16px;padding:28px 40px;text-align:center;">
               <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.7;">
-                Need help finding the right parts? Reply to this email or WhatsApp us at <strong style="color:#60a5fa;">+91 98765 43210</strong><br/>
+                Need help finding the right parts? Reply to this email or WhatsApp us at <strong style="color:#60a5fa;">+91 79077 04541</strong><br/>
                 <span style="font-size:11px;">ScootFix EV Spares · Plot 45, HSR Layout, Bangalore – 560102</span>
               </p>
               <p style="margin:16px 0 0;font-size:11px;color:#475569;">
