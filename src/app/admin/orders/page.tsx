@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FiShoppingBag, FiChevronDown, FiChevronUp, FiArrowRight, FiPrinter, FiFileText } from "react-icons/fi";
+import { FiShoppingBag, FiChevronDown, FiChevronUp, FiArrowRight, FiPrinter, FiFileText, FiTruck, FiExternalLink } from "react-icons/fi";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { OrderTracker, OrderStatus } from "@/components/shared/OrderTracker";
@@ -35,6 +35,10 @@ export default function AdminOrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  // Tracking number modal state
+  const [trackingModal, setTrackingModal] = useState<{ orderId: string; nextStatus: string } | null>(null);
+  const [trackingInput, setTrackingInput] = useState("");
+  const [trackingUrlInput, setTrackingUrlInput] = useState("");
 
   const handlePrintInvoice = (o: any) => {
     const printWindow = window.open("", "_blank");
@@ -65,10 +69,12 @@ export default function AdminOrdersPage() {
     });
 
     const address = o.shippingAddress || {};
+    const name = address.name || `${address.firstName || ""} ${address.lastName || ""}`.trim();
+    const zip = address.zipCode || address.zip || "";
     const addressHtml = `
-      <strong>${address.firstName || ""} ${address.lastName || ""}</strong><br />
+      <strong>${name}</strong><br />
       ${address.street || ""}<br />
-      ${address.city || ""}, ${address.state || ""} – ${address.zip || ""}<br />
+      ${address.city || ""}, ${address.state || ""} – ${zip}<br />
       Phone: ${address.phone || "N/A"}<br />
       Email: ${o.user?.email || "N/A"}
     `;
@@ -282,7 +288,8 @@ export default function AdminOrdersPage() {
     });
 
     const address = o.shippingAddress || {};
-    const deliveryName = `${address.firstName || ""} ${address.lastName || ""}`.toUpperCase();
+    const deliveryName = (address.name || `${address.firstName || ""} ${address.lastName || ""}`).trim().toUpperCase();
+    const deliveryZip = address.zipCode || address.zip || "";
 
     const barcodeBars = Array.from({ length: 42 })
       .map(() => {
@@ -395,7 +402,7 @@ export default function AdminOrdersPage() {
               <div class="delivery-name">${deliveryName}</div>
               ${address.street || ""}<br />
               ${address.city || ""}, ${address.state || ""}<br />
-              <strong>PIN: ${address.zip || ""}</strong><br />
+              <strong>PIN: ${deliveryZip}</strong><br />
               Phone: ${address.phone || ""}
             </div>
           </div>
@@ -447,17 +454,25 @@ export default function AdminOrdersPage() {
 
   useEffect(() => { fetchOrders(); }, []);
 
-  const updateStatus = async (orderId: string, nextStatus: string) => {
+  const updateStatus = async (orderId: string, nextStatus: string, tracking?: { trackingNumber: string; trackingUrl: string }) => {
     setUpdatingId(orderId);
     try {
+      const body: any = { orderId, status: nextStatus };
+      if (tracking) {
+        body.trackingNumber = tracking.trackingNumber;
+        body.trackingUrl = tracking.trackingUrl;
+      }
       const res = await fetch("/api/admin/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, status: nextStatus }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Failed to update status");
       setOrders(prev =>
-        prev.map(o => o.id === orderId ? { ...o, status: nextStatus, updatedAt: new Date().toISOString() } : o)
+        prev.map(o => o.id === orderId
+          ? { ...o, status: nextStatus, updatedAt: new Date().toISOString(), ...(tracking || {}) }
+          : o
+        )
       );
       toast.success(`Order moved to ${nextStatus}`);
     } catch (err: any) {
@@ -465,6 +480,26 @@ export default function AdminOrdersPage() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleAdvanceStatus = (orderId: string, nextStatus: string) => {
+    if (nextStatus === "SHIPPED") {
+      // Show tracking modal before advancing
+      setTrackingInput("");
+      setTrackingUrlInput("");
+      setTrackingModal({ orderId, nextStatus });
+    } else {
+      updateStatus(orderId, nextStatus);
+    }
+  };
+
+  const handleTrackingSubmit = () => {
+    if (!trackingModal) return;
+    updateStatus(trackingModal.orderId, trackingModal.nextStatus, {
+      trackingNumber: trackingInput.trim(),
+      trackingUrl: trackingUrlInput.trim(),
+    });
+    setTrackingModal(null);
   };
 
   if (isLoading) {
@@ -547,7 +582,7 @@ export default function AdminOrdersPage() {
                     {/* Quick advance button */}
                     {nextStatus && (
                       <button
-                        onClick={() => updateStatus(o.id, nextStatus)}
+                        onClick={() => handleAdvanceStatus(o.id, nextStatus)}
                         disabled={isUpdating}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
                       >
@@ -564,7 +599,7 @@ export default function AdminOrdersPage() {
                     <select
                       value={o.status}
                       disabled={isUpdating}
-                      onChange={e => updateStatus(o.id, e.target.value)}
+                      onChange={e => handleAdvanceStatus(o.id, e.target.value)}
                       className="px-2 py-1.5 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
                     >
                       {ALL_STATUSES.map(s => (
@@ -615,15 +650,32 @@ export default function AdminOrdersPage() {
                         ))}
                       </div>
 
-                      {/* Shipping address */}
+                      {/* Shipping address & Tracking Details */}
                       {o.shippingAddress && (
                         <div className="mt-5 pt-5 border-t border-border flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-                          <div>
-                            <h3 className="text-[10px] uppercase font-bold tracking-widest text-text-muted mb-2">Ship To</h3>
-                            <p className="text-sm text-text-secondary">
-                              {o.shippingAddress.firstName} {o.shippingAddress.lastName} &bull; {o.shippingAddress.phone || ""}<br />
-                              {o.shippingAddress.street}, {o.shippingAddress.city}, {o.shippingAddress.state} – {o.shippingAddress.zip}
-                            </p>
+                          <div className="space-y-4">
+                            <div>
+                              <h3 className="text-[10px] uppercase font-bold tracking-widest text-text-muted mb-2">Ship To</h3>
+                              <p className="text-sm text-text-secondary">
+                                {o.shippingAddress.name || `${o.shippingAddress.firstName || ""} ${o.shippingAddress.lastName || ""}`.trim()} &bull; {o.shippingAddress.phone || ""}<br />
+                                {o.shippingAddress.street}, {o.shippingAddress.city}, {o.shippingAddress.state} – {o.shippingAddress.zipCode || o.shippingAddress.zip}
+                              </p>
+                            </div>
+                            {o.trackingNumber && (
+                              <div className="p-3 bg-surface-elevated border border-border rounded-xl flex items-center gap-3 max-w-sm">
+                                <FiTruck className="text-primary shrink-0" size={16} />
+                                <div className="text-xs">
+                                  <p className="font-bold text-text-primary">Tracking: {o.trackingNumber}</p>
+                                  {o.trackingUrl ? (
+                                    <a href={o.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 mt-0.5 font-semibold">
+                                      Track shipment <FiExternalLink size={10} />
+                                    </a>
+                                  ) : (
+                                    <p className="text-text-muted">Standard Carrier Dispatch</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -653,6 +705,61 @@ export default function AdminOrdersPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Tracking Number Modal */}
+      {trackingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs">
+          <div className="bg-surface border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div>
+              <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                <FiTruck className="text-primary" /> Ship Order
+              </h3>
+              <p className="text-xs text-text-secondary mt-1">Provide tracking details to notify the customer about their dispatch.</p>
+            </div>
+            
+            <div className="space-y-3 text-sm">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Tracking / AWB Number</label>
+                <input
+                  type="text"
+                  value={trackingInput}
+                  onChange={e => setTrackingInput(e.target.value)}
+                  placeholder="e.g. 78394029412"
+                  className="w-full h-11 px-3 bg-background border border-border rounded-xl text-text-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-text-muted"
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Tracking URL (Optional)</label>
+                <input
+                  type="url"
+                  value={trackingUrlInput}
+                  onChange={e => setTrackingUrlInput(e.target.value)}
+                  placeholder="e.g. https://delhivery.com/track?id=..."
+                  className="w-full h-11 px-3 bg-background border border-border rounded-xl text-text-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-text-muted"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setTrackingModal(null)}
+                className="flex-1 py-2.5 border border-border rounded-xl text-sm font-semibold text-text-primary hover:bg-surface-elevated transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleTrackingSubmit}
+                className="flex-1 py-2.5 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors shadow-glow"
+              >
+                Mark Shipped
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

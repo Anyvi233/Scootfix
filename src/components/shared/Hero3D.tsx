@@ -10,6 +10,22 @@ export function Hero3D() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isPreloaded, setIsPreloaded] = useState(false);
 
+  // Scroll to top before Next.js unmounts this page — forces GSAP to unpin the
+  // hero div at scroll=0 so React can safely removeChild during navigation.
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") || "";
+      // Only intercept internal navigation links (not # or external)
+      if (href && href.startsWith("/") && href !== "/") {
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, []);
+
   const heroRef          = useRef<HTMLDivElement>(null);
   const canvasRef        = useRef<HTMLCanvasElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
@@ -250,7 +266,10 @@ export function Hero3D() {
 
     return () => {
       anim.kill();
-      ScrollTrigger.getAll().forEach(t => t.kill());
+      // Kill all ScrollTrigger instances and clear their pin spacers from the DOM
+      ScrollTrigger.getAll().forEach(t => t.kill(true));
+      ScrollTrigger.clearScrollMemory();
+      ScrollTrigger.refresh();
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
 
       bitmapsRef.current.forEach(bitmap => {
@@ -258,6 +277,7 @@ export function Hero3D() {
           bitmap.close();
         }
       });
+      bitmapsRef.current = [];
     };
   }, [isPreloaded]);
 

@@ -89,9 +89,9 @@ export default function RootLayout({
       >
         <SkipNav />
         <Providers>
-          <main id="main-content" className="flex flex-col flex-1">
+          <div id="main-content" className="flex flex-col flex-1">
             {children}
-          </main>
+          </div>
         </Providers>
       </body>
     </html>

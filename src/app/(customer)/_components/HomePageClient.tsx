@@ -10,13 +10,7 @@ import { CategoryCard } from "@/components/shared/CategoryCard";
 import { ReviewCard } from "@/components/shared/ReviewCard";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import Image from "next/image";
-import dynamic from "next/dynamic";
-
-const Hero3D = dynamic(
-  () => import("@/components/shared/Hero3D").then((mod) => mod.Hero3D),
-  { ssr: false }
-);
+import { HeroSection } from "@/components/shared/HeroSection";
 
 const FEATURED_CATEGORIES = [
   { id: "1", name: "Bearings", slug: "bearings", image: "https://images.unsplash.com/photo-1618976563759-b6aaee63a2f8?auto=format&fit=crop&q=80&w=800", count: 3 },
@@ -62,7 +56,7 @@ export default function HomePageClient() {
 
   return (
     <>
-      <Hero3D />
+      <HeroSection />
 
       {/* ── Trust badges ───────────────────────────────────────────── */}
       <section className="border-y border-border bg-surface" aria-label="Why ScootFix">

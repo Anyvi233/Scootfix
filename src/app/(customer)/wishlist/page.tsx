@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { FiHeart, FiShoppingCart, FiX } from "react-icons/fi";
 import { useWishlist } from "@/context/WishlistContext";
@@ -11,6 +11,19 @@ import { formatPrice } from "@/lib/utils";
 export default function WishlistPage() {
   const { wishlist, toggleWishlist } = useWishlist();
   const { addToCart } = useCart();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="container mx-auto px-4 py-20 max-w-lg text-center animate-pulse text-text-muted">
+        Loading wishlist...
+      </div>
+    );
+  }
 
   const handleMoveToCart = (item: any) => {
     addToCart({

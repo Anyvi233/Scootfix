@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -47,6 +47,11 @@ export function ProductCard({
   isWishlisted,
 }: ProductCardProps) {
   const { selectedVehicle, isCompatible } = useVehicle();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const discount = compareAtPrice
     ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
@@ -72,14 +77,14 @@ export function ProductCard({
 
       </div>
 
-      {/* Compatibility Badge */}
-      {selectedVehicle && compatibilities && (
+      {/* Compatibility Badge — only render after mount to avoid hydration mismatch */}
+      {mounted && selectedVehicle && compatibilities && (
         <div className="absolute top-3 left-3 z-10">
           {(() => {
-            const { compatible, reason } = isCompatible(compatibilities);
+            const { compatible } = isCompatible(compatibilities);
             return (
-              <Badge 
-                variant={compatible ? "success" : "warning"} 
+              <Badge
+                variant={compatible ? "success" : "warning"}
                 className="px-2.5 py-1 text-[10px] font-bold shadow-md uppercase tracking-wider backdrop-blur-md bg-opacity-95"
               >
                 {compatible ? `✓ Fits ${selectedVehicle.model}` : "⚠ Fits others"}
@@ -100,7 +105,7 @@ export function ProductCard({
       >
         <FiHeart
           size={18}
-          className={isWishlisted ? "fill-danger text-danger" : ""}
+          className={mounted && isWishlisted ? "fill-danger text-danger" : ""}
         />
       </button>
 

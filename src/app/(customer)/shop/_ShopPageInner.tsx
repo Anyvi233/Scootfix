@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useTransition, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useTransition } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FiFilter, FiChevronDown, FiX, FiAlertCircle } from "react-icons/fi";
 import { AnimatePresence, motion } from "framer-motion";
@@ -9,15 +9,11 @@ import { Pagination } from "@/components/shared/Pagination";
 import { Button } from "@/components/ui/Button";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { useVehicle } from "@/context/VehicleContext";
 
-const FilterSidebar = dynamic(
-  () => import("@/components/shared/FilterSidebar").then((m) => m.FilterSidebar),
-  { ssr: false, loading: () => <div className="w-64 h-96 bg-surface animate-pulse rounded-xl" /> }
-);
-const ProductCard = dynamic(
-  () => import("@/components/shared/ProductCard").then((m) => m.ProductCard),
-  { ssr: false }
-);
+import { FilterSidebar } from "@/components/shared/FilterSidebarNew";
+
+import { ProductCard } from "@/components/shared/ProductCard";
 
 const SORT_OPTIONS = [
   { label: "Recommended",       value: "recommended" },
@@ -51,10 +47,21 @@ export default function ShopPageInner() {
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
+  const { selectedVehicle } = useVehicle();
+  const [vehicleModels, setVehicleModels] = useState<any[]>([]);
+
   const [products, setProducts] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 12, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch db vehicle models to resolve context string to CUID on the client side
+  useEffect(() => {
+    fetch("/api/vehicles")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setVehicleModels(data))
+      .catch(() => {});
+  }, []);
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
@@ -62,6 +69,25 @@ export default function ShopPageInner() {
     try {
       const params = new URLSearchParams(searchParams.toString());
       if (!params.get("page")) params.set("page", "1");
+
+      // Inject contextual vehicle compatibility filters if they are not defined in the URL parameters
+      if (!params.get("vehicleModelId") && selectedVehicle && vehicleModels.length > 0) {
+        const brandMatch = vehicleModels.find(
+          (b) => b.name.toLowerCase().includes(selectedVehicle.brand.toLowerCase()) ||
+                 selectedVehicle.brand.toLowerCase().includes(b.name.toLowerCase())
+        );
+        if (brandMatch?.vehicles) {
+          const modelMatch = brandMatch.vehicles.find(
+            (v: any) => v.name.toLowerCase().includes(selectedVehicle.model.toLowerCase()) ||
+                       selectedVehicle.model.toLowerCase().includes(v.name.toLowerCase())
+          );
+          if (modelMatch) {
+            params.set("vehicleModelId", modelMatch.id);
+            params.set("year", selectedVehicle.year);
+          }
+        }
+      }
+
       const res = await fetch(`/api/products?${params.toString()}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -72,7 +98,7 @@ export default function ShopPageInner() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchParams]);
+  }, [searchParams, selectedVehicle, vehicleModels]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -167,9 +193,7 @@ export default function ShopPageInner() {
 
       <div className="flex flex-col md:flex-row gap-8 items-start">
         <aside className="hidden md:block w-64 shrink-0 sticky top-24" aria-label="Product filters">
-          <Suspense fallback={<div className="w-64 h-96 bg-surface animate-pulse rounded-xl" />}>
-            <FilterSidebar />
-          </Suspense>
+          <FilterSidebar />
         </aside>
 
         <AnimatePresence>
@@ -190,23 +214,23 @@ export default function ShopPageInner() {
 
         <div className="flex-1 w-full min-w-0">
           {error ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center border border-danger/30 rounded-2xl bg-danger/5">
+            <div key="error-container" className="flex flex-col items-center justify-center py-20 text-center border border-danger/30 rounded-2xl bg-danger/5">
               <FiAlertCircle size={40} className="text-danger mb-3" />
               <p className="text-text-secondary">{error}</p>
               <Button variant="outline" className="mt-4" onClick={fetchProducts}>Try again</Button>
             </div>
           ) : isLoading || isPending ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div key="skeletons-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {Array.from({ length: pagination.limit }).map((_, i) => <ProductCardSkeleton key={i} />)}
             </div>
           ) : products.length > 0 ? (
-            <>
-              <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <React.Fragment key="products-grid-fragment">
+              <div key="products-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {products.map((product) => {
                   const image = product.images?.[0]?.url || "/placeholder.jpg";
                   const categoryName = product.category?.name || "Spare Parts";
                   return (
-                    <motion.div key={product.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                    <div key={product.id}>
                       <ProductCard
                         id={product.id} name={product.name} slug={product.slug}
                         price={product.price} compareAtPrice={product.compareAtPrice}
@@ -217,14 +241,14 @@ export default function ShopPageInner() {
                         onToggleWishlist={() => toggleWishlist({ id: product.id, name: product.name, slug: product.slug, price: product.price, image, category: categoryName })}
                         isWishlisted={isInWishlist(product.id)}
                       />
-                    </motion.div>
+                    </div>
                   );
                 })}
-              </motion.div>
+              </div>
               <Pagination currentPage={pagination.page} totalPages={pagination.totalPages} totalItems={pagination.total} itemsPerPage={pagination.limit} />
-            </>
+            </React.Fragment>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-2xl bg-surface/50" role="status">
+            <div key="empty-container" className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-2xl bg-surface/50" role="status">
               <div className="w-16 h-16 bg-border/50 rounded-full flex items-center justify-center mb-4 text-text-muted">
                 <FiFilter size={32} />
               </div>

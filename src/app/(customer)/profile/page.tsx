@@ -17,10 +17,23 @@ export default function ProfilePage() {
   const { data: session } = useSession();
   const [addresses, setAddresses] = useState(MOCK_ADDRESSES);
   const { selectedVehicle } = useVehicle();
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fallback to mock session if not logged in for visual showcase
   const userName = session?.user?.name || "Anu V.";
   const userEmail = session?.user?.email || "anu@example.com";
+
+  if (!mounted) {
+    return (
+      <div className="container mx-auto px-4 py-20 max-w-lg text-center animate-pulse text-text-muted">
+        Loading profile details...
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 md:px-6 py-8 md:py-12 max-w-4xl">

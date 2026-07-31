@@ -40,12 +40,11 @@ const VEHICLE_DATA: Record<string, Record<string, Record<string, string[]>>> = {
 
 export function VehicleSelector({ onComplete }: { onComplete?: () => void }) {
   const { selectedVehicle, selectVehicle, clearVehicle } = useVehicle();
-  const [mounted, setMounted] = useState(false);
-
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [variant, setVariant] = useState("");
   const [year, setYear] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   React.useEffect(() => {
     setMounted(true);
@@ -62,18 +61,12 @@ export function VehicleSelector({ onComplete }: { onComplete?: () => void }) {
     }
   }, [selectedVehicle]);
 
-  if (!mounted) {
-    return (
-      <div className="h-40 bg-surface-elevated animate-pulse rounded-lg border border-border flex items-center justify-center text-xs text-text-muted">
-        Loading selector...
-      </div>
-    );
-  }
-
   const brands = Object.keys(VEHICLE_DATA);
   const models = brand ? Object.keys(VEHICLE_DATA[brand] || {}) : [];
   const variants = (brand && model) ? Object.keys(VEHICLE_DATA[brand][model] || {}) : [];
   const years = (brand && model && variant) ? VEHICLE_DATA[brand][model][variant] || [] : [];
+
+
 
   const handleBrandChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setBrand(e.target.value);
@@ -102,7 +95,7 @@ export function VehicleSelector({ onComplete }: { onComplete?: () => void }) {
 
   return (
     <div className="space-y-4">
-      {selectedVehicle && (
+      {mounted && selectedVehicle && (
         <div className="p-3 bg-success/10 border border-success/20 text-success rounded-lg flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
             <FiCheck />

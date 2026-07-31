@@ -14,6 +14,12 @@ export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, addToCart, cartSubtotal, cartCount } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [couponDescription, setCouponDescription] = useState("");
@@ -30,6 +36,24 @@ export default function CartPage() {
     if (saved) {
       try {
         setSaveForLater(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
+  // Load active coupon from sessionStorage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem("scootfix_applied_coupon");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setAppliedCoupon(data.code);
+        setDiscountType(data.discountType);
+        setDiscountValue(data.discountValue);
+        setDiscountAmount(data.discountAmount);
+        setIsCouponFreeShip(data.freeShipping);
+        setCouponDescription(data.description || "");
       } catch (e) {
         console.error(e);
       }
@@ -84,6 +108,7 @@ export default function CartPage() {
         setDiscountAmount(data.discountAmount);
         setIsCouponFreeShip(data.freeShipping);
         setCouponDescription(data.description || "");
+        sessionStorage.setItem("scootfix_applied_coupon", JSON.stringify(data));
         toast.success(`✓ Coupon ${data.code} applied! ${data.discountLabel}`);
       }
     } catch (err) {
@@ -101,6 +126,7 @@ export default function CartPage() {
     setIsCouponFreeShip(false);
     setCouponDescription("");
     setCouponInput("");
+    sessionStorage.removeItem("scootfix_applied_coupon");
     toast.success("Coupon removed.");
   };
 
@@ -121,6 +147,14 @@ export default function CartPage() {
     const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
     return `${minDelivery.toLocaleDateString("en-US", options)} - ${maxDelivery.toLocaleDateString("en-US", options)}`;
   };
+
+  if (!mounted) {
+    return (
+      <div className="container mx-auto px-4 py-20 max-w-lg text-center animate-pulse text-text-muted">
+        Loading cart details...
+      </div>
+    );
+  }
 
   if (cart.length === 0 && saveForLater.length === 0) {
     return (

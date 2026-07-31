@@ -214,6 +214,8 @@ model Order {
   paymentMethod   String
   paymentId       String?
   notes           String?
+  trackingNumber  String?
+  trackingUrl     String?
   
   user            User        @relation(fields: [userId], references: [id])
   items           OrderItem[]
@@ -251,6 +253,7 @@ model Review {
   comment       String?
   isVerified    Boolean  @default(false)
   helpfulCount  Int      @default(0)
+  isFlagged     Boolean  @default(false)
   
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)

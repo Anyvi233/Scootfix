@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 
 export interface CartItem {
@@ -27,25 +28,65 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { status } = useSession();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const isFirstLoad = useRef(true);
 
-  // Load cart from localStorage
+  // Load cart on mount / auth change
   useEffect(() => {
-    const savedCart = localStorage.getItem("scootfix_cart");
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart));
-      } catch (e) {
-        console.error("Failed to parse cart", e);
+    const loadCart = async () => {
+      if (status === "authenticated") {
+        try {
+          const res = await fetch("/api/cart");
+          if (res.ok) {
+            const dbCart = await res.json();
+            setCart(dbCart);
+            localStorage.setItem("scootfix_cart", JSON.stringify(dbCart));
+          }
+        } catch (e) {
+          console.error("Failed to load cart from DB:", e);
+        }
+      } else {
+        const savedCart = localStorage.getItem("scootfix_cart");
+        if (savedCart) {
+          try {
+            setCart(JSON.parse(savedCart));
+          } catch (e) {
+            console.error("Failed to parse cart:", e);
+          }
+        }
       }
-    }
-  }, []);
+      isFirstLoad.current = false;
+    };
 
-  // Save cart to localStorage
-  const saveCart = (newCart: CartItem[]) => {
-    setCart(newCart);
-    localStorage.setItem("scootfix_cart", JSON.stringify(newCart));
-  };
+    loadCart();
+  }, [status]);
+
+  // Sync cart to localStorage and database on state changes
+  useEffect(() => {
+    if (isFirstLoad.current) return;
+
+    localStorage.setItem("scootfix_cart", JSON.stringify(cart));
+
+    if (status === "authenticated") {
+      const syncCart = async () => {
+        try {
+          await fetch("/api/cart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: cart.map(i => ({ id: i.id, quantity: i.quantity }))
+            })
+          });
+        } catch (e) {
+          console.error("Failed to sync cart to DB:", e);
+        }
+      };
+      
+      const timer = setTimeout(syncCart, 400); // Debounce syncs by 400ms to reduce database calls
+      return () => clearTimeout(timer);
+    }
+  }, [cart, status]);
 
   const addToCart = (item: Omit<CartItem, "quantity">, quantity = 1) => {
     const existingIndex = cart.findIndex((i) => i.id === item.id);
@@ -66,14 +107,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       newCart.push({ ...item, quantity });
     }
 
-    saveCart(newCart);
+    setCart(newCart);
     toast.success(`${item.name} added to cart!`);
   };
 
   const removeFromCart = (id: string) => {
     const item = cart.find((i) => i.id === id);
     const newCart = cart.filter((i) => i.id !== id);
-    saveCart(newCart);
+    setCart(newCart);
     if (item) {
       toast.success(`${item.name} removed from cart.`);
     }
@@ -96,11 +137,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return item;
     });
 
-    saveCart(newCart);
+    setCart(newCart);
   };
 
   const clearCart = () => {
-    saveCart([]);
+    setCart([]);
   };
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);

@@ -18,6 +18,7 @@ export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { isDark, setTheme } = useTheme();
   const { cartCount } = useCart();
@@ -26,6 +27,10 @@ export function Header() {
   const isLoggedIn = status === "authenticated";
   const isAdmin = (session?.user as any)?.role === "ADMIN";
   const userLink = isLoggedIn ? (isAdmin ? "/admin" : "/profile") : "/login";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Handle scroll effect for glassmorphism
   useEffect(() => {
@@ -99,7 +104,7 @@ export function Header() {
               className="p-2 text-text-secondary hover:text-primary transition-colors"
               aria-label="Toggle theme"
             >
-              {isDark ? <FiIcons.FiSun size={20} /> : <FiIcons.FiMoon size={20} />}
+              {mounted && isDark ? <FiIcons.FiSun size={20} /> : <FiIcons.FiMoon size={20} />}
             </button>
             
             <button 
@@ -109,13 +114,13 @@ export function Header() {
               <FiIcons.FiSearch size={20} />
             </button>
             
-            <Link href={userLink} className="hidden sm:block p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Account">
+            <Link href={mounted ? userLink : "/login"} className="hidden sm:block p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Account">
               <FiIcons.FiUser size={20} />
             </Link>
 
             <Link href="/wishlist" className="relative p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Wishlist">
               <FiIcons.FiHeart size={20} />
-              {wishlistCount > 0 && (
+              {mounted && wishlistCount > 0 && (
                 <span className="absolute top-0 right-0 h-4 w-4 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full">
                   {wishlistCount}
                 </span>
@@ -124,7 +129,7 @@ export function Header() {
             
             <Link href="/cart" className="relative p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Cart">
               <FiIcons.FiShoppingBag size={20} />
-              {cartCount > 0 && (
+              {mounted && cartCount > 0 && (
                 <span className="absolute top-0 right-0 h-4 w-4 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full">
                   {cartCount}
                 </span>
@@ -165,10 +170,10 @@ export function Header() {
                 </Link>
               ))}
               <div className="h-px bg-border my-2" />
-               <Link href={userLink} className="px-4 py-3 text-text-primary font-medium flex items-center gap-3">
-                 <FiIcons.FiUser size={18} /> {isLoggedIn ? (isAdmin ? "Admin Panel" : "My Profile") : "My Account"}
+               <Link href={mounted ? userLink : "/login"} className="px-4 py-3 text-text-primary font-medium flex items-center gap-3">
+                 <FiIcons.FiUser size={18} /> {mounted && isLoggedIn ? (isAdmin ? "Admin Panel" : "My Profile") : "My Account"}
                </Link>
-              {isLoggedIn && (
+              {mounted && isLoggedIn && (
                 <button 
                   onClick={() => signOut({ callbackUrl: "/" })}
                   className="px-4 py-3 text-danger font-medium flex items-center gap-3 text-left w-full hover:bg-danger/5 rounded-md transition-colors"

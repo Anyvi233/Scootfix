@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FiCreditCard, FiLock, FiTruck, FiArrowRight, FiMapPin, FiInfo, FiShoppingBag } from "react-icons/fi";
+import { FiCreditCard, FiLock, FiTruck, FiArrowRight, FiMapPin, FiInfo, FiShoppingBag, FiTag, FiTrash2 } from "react-icons/fi";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -48,6 +48,30 @@ export default function CheckoutPage() {
   const [upiId, setUpiId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Coupon States
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [discountType, setDiscountType] = useState<"PERCENT" | "FLAT" | "FREESHIP" | "">("");
+  const [discountValue, setDiscountValue] = useState(0);
+  const [isCouponFreeShip, setIsCouponFreeShip] = useState(false);
+  const [isCouponLoading, setIsCouponLoading] = useState(false);
+
+  // Load coupon from sessionStorage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem("scootfix_applied_coupon");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setAppliedCoupon(data.code);
+        setDiscountType(data.discountType);
+        setDiscountValue(data.discountValue);
+        setIsCouponFreeShip(data.freeShipping);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
   // Address check
   const isAddressValid = () => {
     return (
@@ -62,12 +86,25 @@ export default function CheckoutPage() {
   };
 
   // Calculations
+  const discountAmount = (() => {
+    if (!appliedCoupon) return 0;
+    if (discountType === "PERCENT") {
+      return Math.round(cartSubtotal * (discountValue / 100));
+    }
+    if (discountType === "FLAT") {
+      return Math.min(discountValue, cartSubtotal);
+    }
+    return 0;
+  })();
+
+  const discountedSubtotal = Math.max(0, cartSubtotal - discountAmount);
+
   const selectedDelivery = DELIVERY_OPTIONS.find((o) => o.id === deliveryOption);
   const rawShipping = selectedDelivery ? selectedDelivery.price : 0;
-  const shippingCost = cartSubtotal > 5000 && deliveryOption === "standard" ? 0 : rawShipping;
+  const shippingCost = (discountedSubtotal > 5000 || isCouponFreeShip) && deliveryOption === "standard" ? 0 : rawShipping;
   const codFee = paymentMethod === "cod" ? 50 : 0;
-  const estimatedTax = Math.round((cartSubtotal + shippingCost + codFee) * 0.18); // 18% GST
-  const totalCost = cartSubtotal + shippingCost + codFee + estimatedTax;
+  const estimatedTax = Math.round((discountedSubtotal + shippingCost + codFee) * 0.18); // 18% GST
+  const totalCost = discountedSubtotal + shippingCost + codFee + estimatedTax;
 
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +118,45 @@ export default function CheckoutPage() {
   const handleDeliverySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setStep(3);
+  };
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setIsCouponLoading(true);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, orderAmount: cartSubtotal }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Invalid coupon code.");
+      } else {
+        setAppliedCoupon(data.code);
+        setDiscountType(data.discountType);
+        setDiscountValue(data.discountValue);
+        setIsCouponFreeShip(data.freeShipping);
+        sessionStorage.setItem("scootfix_applied_coupon", JSON.stringify(data));
+        toast.success(`✓ Coupon ${data.code} applied successfully!`);
+        setCouponInput("");
+      }
+    } catch (err) {
+      toast.error("Failed to validate coupon. Please try again.");
+    } finally {
+      setIsCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon("");
+    setDiscountType("");
+    setDiscountValue(0);
+    setIsCouponFreeShip(false);
+    sessionStorage.removeItem("scootfix_applied_coupon");
+    toast.success("Coupon removed.");
   };
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -115,6 +191,7 @@ export default function CheckoutPage() {
           paymentMethod,
           paymentId: paymentMethod === "upi" ? upiId : paymentMethod === "card" ? "CARD-SIMULATED" : "COD-SIMULATED",
           notes: `Delivery: ${selectedDelivery?.label}`,
+          couponCode: appliedCoupon || null,
         }),
       });
 
@@ -135,6 +212,7 @@ export default function CheckoutPage() {
         payment: PAYMENT_METHODS.find(m => m.id === paymentMethod)?.label,
         items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
         subtotal: cartSubtotal,
+        discountAmount,
         shippingCost,
         codFee,
         tax: estimatedTax,
@@ -143,7 +221,10 @@ export default function CheckoutPage() {
       
       sessionStorage.setItem("scootfix_latest_invoice", JSON.stringify(invoiceData));
       
+      // Clear cart and sessionStorage coupon
       clearCart();
+      sessionStorage.removeItem("scootfix_applied_coupon");
+      
       router.push(`/order-success?id=${order.orderNumber}`);
     } catch (e: any) {
       toast.error(e.message || "Checkout failed. Please try again.");
@@ -179,6 +260,7 @@ export default function CheckoutPage() {
           {/* Step Headers */}
           <div className="grid grid-cols-3 gap-2 border-b border-border pb-4">
             <button 
+              type="button"
               onClick={() => step > 1 && setStep(1)}
               className={`text-left pb-2 border-b-2 transition-all ${step === 1 ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
             >
@@ -186,6 +268,7 @@ export default function CheckoutPage() {
               <p className="text-sm font-bold truncate">Address</p>
             </button>
             <button 
+              type="button"
               onClick={() => step > 2 && setStep(2)}
               className={`text-left pb-2 border-b-2 transition-all ${step === 2 ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
               disabled={step < 2}
@@ -194,6 +277,7 @@ export default function CheckoutPage() {
               <p className="text-sm font-bold truncate">Delivery</p>
             </button>
             <button 
+              type="button"
               className={`text-left pb-2 border-b-2 transition-all ${step === 3 ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
               disabled={step < 3}
             >
@@ -290,7 +374,7 @@ export default function CheckoutPage() {
 
               <div className="space-y-3">
                 {DELIVERY_OPTIONS.map((option) => {
-                  const actualPrice = cartSubtotal > 5000 && option.id === "standard" ? 0 : option.price;
+                  const actualPrice = discountedSubtotal > 5000 && option.id === "standard" ? 0 : option.price;
                   return (
                     <label 
                       key={option.id}
@@ -311,7 +395,7 @@ export default function CheckoutPage() {
                         </div>
                       </div>
                       <span className="font-bold text-sm text-text-primary">
-                        {actualPrice === 0 ? <span className="text-success uppercase">Free</span> : formatPrice(actualPrice)}
+                        {actualPrice === 0 ? <span className="text-success uppercase font-semibold">Free</span> : formatPrice(actualPrice)}
                       </span>
                     </label>
                   );
@@ -408,7 +492,7 @@ export default function CheckoutPage() {
 
                   {paymentMethod === "netbanking" && (
                     <div className="space-y-3">
-                      <p className="text-xs text-text-secondary">Select your bank from the list below. You will be redirected to your bank's secure page to complete the transaction.</p>
+                      <p className="text-xs text-text-secondary">Select your bank from the list below. You will be redirected to your secure bank login to complete the payment.</p>
                       <select className="w-full h-11 px-3 bg-surface border border-border rounded-md text-sm text-text-primary focus:outline-none">
                         <option>State Bank of India (SBI)</option>
                         <option>HDFC Bank</option>
@@ -465,21 +549,67 @@ export default function CheckoutPage() {
               ))}
             </div>
 
+            {/* Promo Code Validation Form */}
+            <div className="border-t border-border pt-4">
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between p-3 bg-success/5 border border-success/15 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <FiTag className="text-success shrink-0" size={16} />
+                    <div>
+                      <p className="text-xs font-bold text-success uppercase leading-none">{appliedCoupon}</p>
+                      <p className="text-[10px] text-text-secondary mt-1">Discount Applied</p>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={handleRemoveCoupon} 
+                    className="p-1.5 hover:bg-danger/5 text-text-muted hover:text-danger rounded-lg transition-colors"
+                    title="Remove coupon"
+                  >
+                    <FiTrash2 size={14} />
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={e => setCouponInput(e.target.value)}
+                    placeholder="Enter Coupon Code"
+                    className="flex-grow px-3 bg-surface border border-border rounded-lg text-sm text-text-primary focus:outline-none placeholder:text-text-muted"
+                  />
+                  <Button type="submit" size="sm" variant="outline" isLoading={isCouponLoading}>
+                    Apply
+                  </Button>
+                </form>
+              )}
+            </div>
+
             <div className="border-t border-border pt-4 space-y-2 text-sm">
               <div className="flex justify-between text-text-secondary">
                 <span>Subtotal</span>
                 <span className="text-text-primary font-medium">{formatPrice(cartSubtotal)}</span>
               </div>
+              
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-success">
+                  <span>Discount ({appliedCoupon})</span>
+                  <span className="font-semibold">-{formatPrice(discountAmount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between text-text-secondary">
                 <span>Estimated GST (18%)</span>
                 <span className="text-text-primary font-medium">{formatPrice(estimatedTax)}</span>
               </div>
+              
               <div className="flex justify-between text-text-secondary">
                 <span>Shipping</span>
                 <span className="text-text-primary font-medium">
                   {shippingCost === 0 ? <span className="text-success font-semibold">FREE</span> : formatPrice(shippingCost)}
                 </span>
               </div>
+
               {paymentMethod === "cod" && (
                 <div className="flex justify-between text-text-secondary">
                   <span>COD Fee</span>

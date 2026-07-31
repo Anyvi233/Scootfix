@@ -57,16 +57,20 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { orderId, status } = body;
+    const { orderId, status, trackingNumber, trackingUrl } = body;
 
     const VALID_STATUSES = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
     if (!orderId || !status || !VALID_STATUSES.includes(status)) {
       return NextResponse.json({ error: "Missing or invalid status" }, { status: 400 });
     }
 
+    const updateData: any = { status };
+    if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber || null;
+    if (trackingUrl !== undefined) updateData.trackingUrl = trackingUrl || null;
+
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
-      data: { status }
+      data: updateData,
     });
 
     return NextResponse.json(updatedOrder);

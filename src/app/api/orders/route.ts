@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { shippingAddress, billingAddress, paymentMethod, paymentId, notes } = body;
+    const { shippingAddress, billingAddress, paymentMethod, paymentId, notes, couponCode } = body;
 
     if (!shippingAddress || !paymentMethod) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -41,12 +41,35 @@ export async function POST(req: NextRequest) {
       billingAddress,
       paymentMethod,
       paymentId,
-      notes
+      notes,
+      couponCode
     );
 
     return NextResponse.json(order, { status: 201 });
   } catch (error: any) {
     console.error("POST /api/orders error:", error);
     return NextResponse.json({ error: error.message || "Failed to place order" }, { status: 400 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    if (!token || !token.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { orderId } = body;
+
+    if (!orderId) {
+      return NextResponse.json({ error: "Order ID is required." }, { status: 400 });
+    }
+
+    const cancelledOrder = await OrderService.cancelOrder(token.id as string, orderId);
+    return NextResponse.json(cancelledOrder);
+  } catch (error: any) {
+    console.error("PATCH /api/orders error:", error);
+    return NextResponse.json({ error: error.message || "Failed to cancel order" }, { status: 400 });
   }
 }

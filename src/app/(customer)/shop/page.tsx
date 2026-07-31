@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { buildPageMetadata, canonicalUrl } from "@/lib/seo";
-import ShopPageInner from "./_ShopPageInner";
+import ShopClientWrapper from "./_ShopClientWrapper";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Shop EV Spare Parts — Batteries, Brakes, Tyres & More",
@@ -19,10 +18,8 @@ export const metadata: Metadata = buildPageMetadata({
   ],
 });
 
+// Server Component — just renders the client wrapper
+// The client wrapper uses dynamic(ssr:false) to prevent ALL hydration mismatches
 export default function ShopPage() {
-  return (
-    <Suspense>
-      <ShopPageInner />
-    </Suspense>
-  );
+  return <ShopClientWrapper />;
 }

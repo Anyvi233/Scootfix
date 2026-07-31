@@ -1,159 +1,196 @@
 "use client";
 
-import React, { useState } from "react";
-import { FiTrendingUp, FiDownload, FiBarChart2, FiCalendar, FiPieChart, FiDollarSign } from "react-icons/fi";
-import { Button } from "@/components/ui/Button";
+import React, { useState, useEffect } from "react";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
+} from "recharts";
+import { FiTrendingUp, FiShoppingBag, FiUsers, FiPackage, FiBarChart2, FiRefreshCw } from "react-icons/fi";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 
-const REVENUE_BY_MONTH = [
-  { month: "Jan", revenue: 45000, orders: 120 },
-  { month: "Feb", revenue: 52000, orders: 142 },
-  { month: "Mar", revenue: 49000, orders: 130 },
-  { month: "Apr", revenue: 63000, orders: 175 },
-  { month: "May", revenue: 58000, orders: 160 },
-  { month: "Jun", revenue: 75000, orders: 210 },
-];
+const CHART_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6"];
 
-const BESTSELLERS = [
-  { id: "1", name: "High-Capacity Lithium Ion Battery Pack (72V 30Ah)", sales: 48, revenue: 1679952 },
-  { id: "2", name: "Premium Ceramic Brake Pads Set", sales: 124, revenue: 161076 },
-  { id: "3", name: "All-Weather Tubeless Tire (12-inch)", sales: 86, revenue: 214914 },
-];
+const STATUS_COLORS: Record<string, string> = {
+  PENDING: "#f59e0b",
+  CONFIRMED: "#6366f1",
+  PROCESSING: "#3b82f6",
+  SHIPPED: "#8b5cf6",
+  DELIVERED: "#22c55e",
+  CANCELLED: "#ef4444",
+};
 
-const CATEGORY_SHARE = [
-  { category: "Batteries", percentage: 45, color: "bg-primary" },
-  { category: "Brakes", percentage: 25, color: "bg-success" },
-  { category: "Tires", percentage: 15, color: "bg-warning" },
-  { category: "Wiring & Harnesses", percentage: 15, color: "bg-info" },
-];
+function KpiCard({ label, value, icon: Icon, color }: any) {
+  return (
+    <div className="bg-surface border border-border rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[10px] uppercase font-bold tracking-widest text-text-muted">{label}</p>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
+          <Icon size={16} />
+        </div>
+      </div>
+      <p className="text-2xl font-bold text-text-primary">{value}</p>
+    </div>
+  );
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-surface border border-border rounded-xl px-4 py-3 shadow-xl text-xs">
+      <p className="font-bold text-text-primary mb-1">{label}</p>
+      {payload.map((p: any, i: number) => (
+        <p key={i} style={{ color: p.color }}>
+          {p.name}: {p.name === "Revenue" ? formatPrice(p.value) : p.value}
+        </p>
+      ))}
+    </div>
+  );
+};
 
 export default function AdminReportsPage() {
-  const [timeRange, setTimeRange] = useState("6m");
-  const [isExporting, setIsExporting] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleExport = async () => {
-    setIsExporting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsExporting(false);
-    toast.success("CSV Report download started!");
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/admin/analytics");
+      if (!res.ok) throw new Error("Failed to load analytics");
+      setData(await res.json());
+    } catch (err: any) {
+      toast.error(err.message || "Could not load analytics.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  useEffect(() => { fetchData(); }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const kpis = data?.kpis || {};
+  const revenueByMonth = data?.revenueByMonth || [];
+  const topProducts = data?.topProducts || [];
+  const statusBreakdown = data?.statusBreakdown || [];
+
   return (
-    <div className="space-y-8 max-w-5xl">
-      
-      {/* Title */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+    <div className="space-y-6 max-w-6xl">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-display font-bold text-text-primary flex items-center gap-2">
-            <FiBarChart2 className="text-primary"/> Reports & Performance Analytics
+            <FiBarChart2 className="text-primary" /> Reports & Performance Analytics
           </h1>
-          <p className="text-xs text-text-secondary mt-1">Export transaction logs, trace customer acquisitions, and analyze EV parts category distributions.</p>
+          <p className="text-text-secondary mt-1 text-sm">Live data from your database — updated on every load.</p>
         </div>
-        
-        <div className="flex gap-3">
-          <select 
-            value={timeRange} 
-            onChange={e => setTimeRange(e.target.value)}
-            className="h-10 px-3 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none"
-          >
-            <option value="30d">Last 30 Days</option>
-            <option value="6m">Last 6 Months</option>
-            <option value="1y">Last Year</option>
-          </select>
-          
-          <Button onClick={handleExport} size="sm" isLoading={isExporting} leftIcon={<FiDownload />}>
-            Export CSV
-          </Button>
-        </div>
+        <button
+          onClick={fetchData}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-surface border border-border text-sm font-semibold rounded-xl hover:bg-surface-elevated transition-colors"
+        >
+          <FiRefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+          Refresh
+        </button>
       </div>
 
-      {/* Analytics chart panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Sales Chart SVG Mock */}
-        <div className="bg-surface border border-border rounded-xl p-6 lg:col-span-2 space-y-4 shadow-xs">
-          <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
-            <FiDollarSign className="text-success"/> Revenue Trend Line
-          </h3>
-          
-          {/* Simulated chart */}
-          <div className="h-64 border-b border-border flex items-end justify-between pt-8 pb-2 px-4 relative">
-            
-            {/* Grid Lines */}
-            <div className="absolute inset-x-0 top-1/4 border-t border-border/30 border-dashed" />
-            <div className="absolute inset-x-0 top-2/4 border-t border-border/30 border-dashed" />
-            <div className="absolute inset-x-0 top-3/4 border-t border-border/30 border-dashed" />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Total Revenue" value={formatPrice(kpis.totalRevenue)} icon={FiTrendingUp} color="bg-primary/10 text-primary" />
+        <KpiCard label="Total Orders" value={kpis.totalOrders?.toLocaleString()} icon={FiShoppingBag} color="bg-success/10 text-success" />
+        <KpiCard label="Customers" value={kpis.totalCustomers?.toLocaleString()} icon={FiUsers} color="bg-warning/10 text-warning" />
+        <KpiCard label="Products" value={kpis.totalProducts?.toLocaleString()} icon={FiPackage} color="bg-info/10 text-info" />
+      </div>
 
-            {REVENUE_BY_MONTH.map((item, idx) => {
-              const maxVal = 80000;
-              const heightPercent = `${(item.revenue / maxVal) * 100}%`;
-              return (
-                <div key={idx} className="flex-1 flex flex-col items-center group relative z-10">
-                  <div 
-                    className="w-10 bg-primary/20 hover:bg-primary border-t-2 border-primary rounded-t-sm transition-all duration-300 relative cursor-pointer"
-                    style={{ height: heightPercent }}
-                  >
-                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface border border-border shadow-md rounded px-2 py-1 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none text-text-primary">
-                      {formatPrice(item.revenue)}
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-text-muted mt-2 font-medium">{item.month}</span>
-                </div>
-              );
-            })}
+      {/* Revenue Area Chart */}
+      <div className="bg-surface border border-border rounded-2xl p-6">
+        <h3 className="font-bold text-sm text-text-primary mb-6">📈 Revenue Trend (Last 6 Months)</h3>
+        {revenueByMonth.length === 0 ? (
+          <div className="h-64 flex items-center justify-center text-text-muted text-sm">
+            No order data yet — place some orders to see the chart!
           </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={revenueByMonth} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#6366f1" strokeWidth={2} fill="url(#revenueGrad)" dot={{ fill: "#6366f1", r: 4 }} activeDot={{ r: 6 }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Bottom row — Top Products + Order Status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Top Products Bar Chart */}
+        <div className="bg-surface border border-border rounded-2xl p-6">
+          <h3 className="font-bold text-sm text-text-primary mb-6">🏆 Top 5 Products by Units Sold</h3>
+          {topProducts.length === 0 ? (
+            <div className="h-52 flex items-center justify-center text-text-muted text-sm">No sales data yet.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={topProducts} layout="vertical" margin={{ left: 0, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} width={120} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="units" name="Units Sold" radius={[0, 6, 6, 0]}>
+                  {topProducts.map((_: any, i: number) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        {/* Category Share */}
-        <div className="bg-surface border border-border rounded-xl p-6 space-y-5 shadow-xs">
-          <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
-            <FiPieChart className="text-primary"/> Category Revenue Share
-          </h3>
-
-          <div className="space-y-4">
-            {CATEGORY_SHARE.map((c, idx) => (
-              <div key={idx} className="space-y-1.5 text-xs">
-                <div className="flex justify-between font-semibold">
-                  <span className="text-text-secondary">{c.category}</span>
-                  <span className="text-text-primary">{c.percentage}%</span>
-                </div>
-                <div className="w-full bg-border/40 h-2 rounded-full overflow-hidden">
-                  <div className={`h-full ${c.color}`} style={{ width: `${c.percentage}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Order Status Pie Chart */}
+        <div className="bg-surface border border-border rounded-2xl p-6">
+          <h3 className="font-bold text-sm text-text-primary mb-6">🥧 Order Status Breakdown</h3>
+          {statusBreakdown.length === 0 ? (
+            <div className="h-52 flex items-center justify-center text-text-muted text-sm">No order data yet.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={statusBreakdown}
+                  dataKey="count"
+                  nameKey="status"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={85}
+                  paddingAngle={3}
+                >
+                  {statusBreakdown.map((entry: any, i: number) => (
+                    <Cell key={i} fill={STATUS_COLORS[entry.status] || CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: any) => [`${v} orders`, ""]} />
+                <Legend
+                  formatter={(value) => <span style={{ fontSize: 11, color: "#94a3b8" }}>{value}</span>}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
       </div>
-
-      {/* Bestselling items Table */}
-      <div className="bg-surface border border-border rounded-xl p-6 space-y-4 shadow-xs">
-        <h3 className="font-bold text-sm text-text-primary">Bestselling EV Spare Parts</h3>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-border text-text-muted uppercase text-[10px] font-bold tracking-wider pb-2">
-                <th className="pb-3">Spare Part</th>
-                <th className="pb-3 text-center">Units Sold</th>
-                <th className="pb-3 text-right">Total Revenue</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {BESTSELLERS.map((item, idx) => (
-                <tr key={idx} className="text-text-secondary">
-                  <td className="py-3.5 font-medium text-text-primary">{item.name}</td>
-                  <td className="py-3.5 text-center font-bold">{item.sales} units</td>
-                  <td className="py-3.5 text-right font-bold text-text-primary">{formatPrice(item.revenue)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
   );
 }
