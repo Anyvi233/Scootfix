@@ -6,12 +6,17 @@
 
 import { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "./prisma";
 import { logFailedLogin, logSuccessfulLogin } from "./security/audit-logger";
 
 export const authOptions: AuthOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -79,10 +84,45 @@ export const authOptions: AuthOptions = {
     },
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        if (!user.email) return false;
+        try {
+          let dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+          });
+
+          if (!dbUser) {
+            dbUser = await prisma.user.create({
+              data: {
+                email: user.email,
+                name: user.name || "Google User",
+                image: user.image,
+                role: "CUSTOMER",
+              },
+            });
+          }
+          (user as any).id = dbUser.id;
+          (user as any).role = dbUser.role;
+        } catch (err) {
+          console.error("Google signIn error in DB:", err);
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role;
+        token.role = (user as any).role || "CUSTOMER";
         token.id = user.id;
+      }
+      if (!token.id && token.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email },
+        });
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.role = dbUser.role;
+        }
       }
       return token;
     },
