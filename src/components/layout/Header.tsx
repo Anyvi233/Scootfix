@@ -26,7 +26,7 @@ export function Header() {
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated";
   const isAdmin = (session?.user as import("@prisma/client").User)?.role === "ADMIN";
-  const userLink = isLoggedIn ? (isAdmin ? "/admin" : "/profile") : "/login";
+  const userLink = isLoggedIn ? "/profile" : "/login";
 
   useEffect(() => {
     setMounted(true);
@@ -115,7 +115,18 @@ export function Header() {
               <FiIcons.FiSearch size={20} />
             </button>
             
-            <Link href={mounted ? userLink : "/login"} className="hidden sm:block p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Account">
+            {mounted && isLoggedIn && isAdmin && (
+              <Link
+                href="/admin"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-semibold hover:bg-primary hover:text-white transition-all"
+                title="Go to Admin Console"
+              >
+                <FiIcons.FiShield size={13} />
+                Admin
+              </Link>
+            )}
+
+            <Link href={mounted ? userLink : "/login"} className="hidden sm:block p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Account" title="My Profile">
               <FiIcons.FiUser size={20} />
             </Link>
 
@@ -178,8 +189,13 @@ export function Header() {
                 <FiIcons.FiSearch size={18} /> Search Products
               </button>
                <Link href={mounted ? userLink : "/login"} className="px-4 py-3 text-text-primary font-medium flex items-center gap-3">
-                 <FiIcons.FiUser size={18} /> {mounted && isLoggedIn ? (isAdmin ? "Admin Panel" : "My Profile") : "My Account"}
+                 <FiIcons.FiUser size={18} /> {mounted && isLoggedIn ? "My Profile" : "My Account"}
                </Link>
+               {mounted && isLoggedIn && isAdmin && (
+                 <Link href="/admin" className="px-4 py-3 text-primary font-medium flex items-center gap-3">
+                   <FiIcons.FiShield size={18} /> Admin Console
+                 </Link>
+               )}
               {mounted && isLoggedIn && (
                 <button 
                   onClick={() => signOut({ callbackUrl: "/" })}
