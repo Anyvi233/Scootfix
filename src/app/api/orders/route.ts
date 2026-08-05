@@ -68,7 +68,7 @@ if (user?.email && orderWithItems) {
     })),
     subtotal: Number(order.subtotal),
     tax: Number(order.tax ?? 0),
-    shipping: Number(order.shippingCost ?? 0),
+    shipping: Number(order.shipping ?? 0),
     total: Number(order.total),
     paymentMethod,
     shippingAddress,
