@@ -221,9 +221,9 @@ export default function AdminOrderDetailPage() {
               Update Order
             </Button>
             
-            {status === "SHIPPED" && order.status !== "SHIPPED" && (
-              <p className="text-xs text-warning mt-2 italic text-center">
-                Updating to SHIPPED will trigger a notification email to the customer.
+            {status === "SHIPPED" && (
+              <p className="text-xs text-info mt-2 italic text-center">
+                💡 Note: Entering a Tracking Number or URL will automatically send a shipping confirmation email to the customer.
               </p>
             )}
           </div>
