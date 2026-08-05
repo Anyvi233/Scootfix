@@ -20,7 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: "#ef4444",
 };
 
-function KpiCard({ label, value, icon: Icon, color }: any) {
+function KpiCard({ label, value, icon: Icon, color }: { label: string, value: string | number, icon: React.ElementType, color: string }) {
   return (
     <div className="bg-surface border border-border rounded-2xl p-5">
       <div className="flex items-center justify-between mb-3">
@@ -34,12 +34,12 @@ function KpiCard({ label, value, icon: Icon, color }: any) {
   );
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean, payload?: { color: string, name: string, value: number }[], label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-surface border border-border rounded-xl px-4 py-3 shadow-xl text-xs">
       <p className="font-bold text-text-primary mb-1">{label}</p>
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i: number) => (
         <p key={i} style={{ color: p.color }}>
           {p.name}: {p.name === "Revenue" ? formatPrice(p.value) : p.value}
         </p>
@@ -49,7 +49,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function AdminReportsPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{ kpis?: Record<string, number>, revenueByMonth?: { month: string, revenue: number }[], topProducts?: { name: string, units: number }[], statusBreakdown?: { status: string, count: number }[] } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
@@ -58,8 +58,8 @@ export default function AdminReportsPage() {
       const res = await fetch("/api/admin/analytics");
       if (!res.ok) throw new Error("Failed to load analytics");
       setData(await res.json());
-    } catch (err: any) {
-      toast.error(err.message || "Could not load analytics.");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "Could not load analytics.");
     } finally {
       setIsLoading(false);
     }
@@ -150,7 +150,7 @@ export default function AdminReportsPage() {
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} width={120} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="units" name="Units Sold" radius={[0, 6, 6, 0]}>
-                  {topProducts.map((_: any, i: number) => (
+                  {topProducts.map((_, i: number) => (
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Bar>
@@ -177,11 +177,12 @@ export default function AdminReportsPage() {
                   outerRadius={85}
                   paddingAngle={3}
                 >
-                  {statusBreakdown.map((entry: any, i: number) => (
+                  {statusBreakdown.map((entry, i: number) => (
                     <Cell key={i} fill={STATUS_COLORS[entry.status] || CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: any) => [`${v} orders`, ""]} />
+                {/* @ts-expect-error Recharts type mismatch */}
+                <Tooltip formatter={(v: number) => [`${v} orders`, ""]} />
                 <Legend
                   formatter={(value) => <span style={{ fontSize: 11, color: "#94a3b8" }}>{value}</span>}
                 />

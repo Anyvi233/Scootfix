@@ -20,9 +20,9 @@ export default function AdminOverviewPage() {
         }
         const overviewData = await res.json();
         setData(overviewData);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message || "An error occurred while fetching system statistics.");
+        setError((err instanceof Error ? err.message : "An error occurred") || "An error occurred while fetching system statistics.");
       } finally {
         setIsLoading(false);
       }
@@ -118,7 +118,7 @@ export default function AdminOverviewPage() {
                   </div>
                   <div className="text-right space-y-1">
                     <p className="font-bold text-text-primary">{formatPrice(ord.total)}</p>
-                    <p className="text-text-muted font-medium">{ord.date}</p>
+                    <p className="text-text-muted font-medium">{ord.createdAt}</p>
                   </div>
                 </div>
               ))
@@ -134,7 +134,7 @@ export default function AdminOverviewPage() {
             {lowStockProducts.length === 0 ? (
               <p className="text-xs text-text-muted py-6 text-center">All products are well stocked!</p>
             ) : (
-              lowStockProducts.map((p: any, idx: number) => (
+              lowStockProducts.map((p: import("@prisma/client").Product, idx: number) => (
                 <div key={idx} className="p-3 bg-danger/5 border border-danger/10 rounded-lg space-y-1">
                   <p className="text-xs font-semibold text-text-primary truncate">{p.name}</p>
                   <p className="text-[10px] text-text-secondary font-medium">SKU: {p.sku} &bull; <span className="text-danger font-bold">Only {p.stock} left</span></p>

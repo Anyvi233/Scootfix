@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
+import { apiFetch } from "@/lib/api-client";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -25,9 +26,9 @@ export default function AdminProductsPage() {
       }
       const data = await res.json();
       setProducts(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "An error occurred while loading catalog products.");
+      setError((err instanceof Error ? err.message : "An error occurred") || "An error occurred while loading catalog products.");
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +46,7 @@ export default function AdminProductsPage() {
     }
 
     try {
-      const res = await fetch("/api/admin/products", {
+      const res = await apiFetch("/api/admin/products", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -69,8 +70,8 @@ export default function AdminProductsPage() {
       setNewProduct({ name: "", sku: "", price: "", stock: "", category: "", brand: "" });
       setShowAddForm(false);
       fetchProducts();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save product");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "Failed to save product");
     }
   };
 
@@ -78,7 +79,7 @@ export default function AdminProductsPage() {
     if (!confirm("Are you sure you want to deactivate this product?")) return;
 
     try {
-      const res = await fetch(`/api/admin/products?id=${productId}`, {
+      const res = await apiFetch(`/api/admin/products?id=${productId}`, {
         method: "DELETE"
       });
 
@@ -88,8 +89,8 @@ export default function AdminProductsPage() {
 
       toast.success("Product deactivated successfully");
       fetchProducts();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to deactivate product");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "Failed to deactivate product");
     }
   };
 

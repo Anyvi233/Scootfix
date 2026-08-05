@@ -10,7 +10,7 @@ export function WhatsAppWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-center group">
+    <div className="fixed bottom-6 right-6 z-50 flex items-center group safe-area-bottom">
       {/* Tooltip Label */}
       <span className="hidden sm:inline-block mr-3 px-3 py-1.5 bg-surface border border-border text-text-primary text-xs font-semibold rounded-lg shadow-lg opacity-0 translate-x-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 whitespace-nowrap">
         Chat with Us

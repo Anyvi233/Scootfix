@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { FiUser, FiMail, FiMapPin, FiPhone, FiPackage, FiEdit, FiLogOut } from "react-icons/fi";
 import { Button } from "@/components/ui/Button";
 import { useVehicle } from "@/context/VehicleContext";
+import { apiFetch } from "@/lib/api-client";
 
 // Mock address book
 const MOCK_ADDRESSES = [
@@ -161,6 +162,44 @@ export default function ProfilePage() {
             </div>
           </div>
 
+        </div>
+
+        {/* Danger Zone */}
+        <div className="md:col-span-3 mt-4">
+          <div className="bg-danger/5 border border-danger/20 rounded-xl p-6">
+            <h3 className="text-danger font-bold mb-2">Danger Zone</h3>
+            <p className="text-text-secondary text-sm mb-4">
+              Once you delete your account, there is no going back. Please be certain. All your personal data will be anonymized.
+            </p>
+            <Button
+              variant="outline"
+              className="border-danger/30 hover:border-danger hover:bg-danger/10 text-danger"
+              onClick={async () => {
+                const pass = window.prompt("Are you absolutely sure? This action cannot be undone. Please type your password to confirm:");
+                if (pass) {
+                  try {
+                    const res = await fetch("/api/user/delete", { 
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ password: pass })
+                    });
+                    
+                    const data = await res.json();
+                    if (res.ok) {
+                      alert("Account successfully deleted.");
+                      signOut({ callbackUrl: "/" });
+                    } else {
+                      alert(data.error || "Failed to delete account");
+                    }
+                  } catch (e) {
+                    alert("An error occurred");
+                  }
+                }
+              }}
+            >
+              Delete Account
+            </Button>
+          </div>
         </div>
 
       </div>

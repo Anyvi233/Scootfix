@@ -29,9 +29,9 @@ export async function POST(req: NextRequest) {
         description,
         status: "REQUESTED",
         items: {
-          create: items.map((i: any) => ({
+          create: items.map((i: { orderItemId: string, reason: string, quantity?: number }) => ({
             orderItemId: i.orderItemId,
-            quantity: i.quantity,
+            quantity: i.quantity || 1,
             reason: i.reason || reason,
           }))
         }
@@ -39,9 +39,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(returnReq, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("POST /api/returns error:", err);
-    return NextResponse.json({ error: err.message || "Failed to create return request." }, { status: 500 });
+    return NextResponse.json({ error: (err instanceof Error ? err.message : "An error occurred") || "Failed to create return request." }, { status: 500 });
   }
 }
 
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       }
     });
     return NextResponse.json(returns);
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json({ error: "Failed to fetch returns." }, { status: 500 });
   }
 }

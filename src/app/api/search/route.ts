@@ -5,6 +5,15 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
+    const skipParam = searchParams.get("skip");
+    const takeParam = searchParams.get("take");
+
+    if (!skipParam || !takeParam) {
+      return NextResponse.json({ error: "skip and take parameters are required" }, { status: 400 });
+    }
+
+    const skip = parseInt(skipParam, 10);
+    const take = parseInt(takeParam, 10);
 
     if (!query || query.length < 2) {
       return NextResponse.json({ products: [], categories: [] });
@@ -20,7 +29,8 @@ export async function GET(request: Request) {
           { sku: { contains: query } },
         ]
       },
-      take: 5,
+      skip,
+      take,
       select: {
         id: true,
         name: true,
@@ -37,7 +47,8 @@ export async function GET(request: Request) {
       where: {
         name: { contains: query }
       },
-      take: 3,
+      skip,
+      take,
       select: {
         id: true,
         name: true,

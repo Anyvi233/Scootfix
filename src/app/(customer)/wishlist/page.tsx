@@ -25,7 +25,7 @@ export default function WishlistPage() {
     );
   }
 
-  const handleMoveToCart = (item: any) => {
+  const handleMoveToCart = (item: import("@/context/WishlistContext").WishlistItem) => {
     addToCart({
       id: item.id,
       name: item.name,
@@ -90,7 +90,6 @@ export default function WishlistPage() {
                 <span className="font-bold text-text-primary">{formatPrice(item.price)}</span>
               </div>
 
-              {/* Action */}
               <Button
                 onClick={() => handleMoveToCart(item)}
                 className="w-full mt-auto"

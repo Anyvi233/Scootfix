@@ -25,7 +25,7 @@ export function Header() {
   const { wishlistCount } = useWishlist();
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated";
-  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const isAdmin = (session?.user as import("@prisma/client").User)?.role === "ADMIN";
   const userLink = isLoggedIn ? (isAdmin ? "/admin" : "/profile") : "/login";
 
   useEffect(() => {
@@ -65,11 +65,12 @@ export function Header() {
     <>
       <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 header-safe",
         isScrolled
           ? "glass py-3 shadow-sm"
           : "bg-background py-5"
       )}
+      suppressHydrationWarning
     >
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex items-center justify-between">
@@ -170,6 +171,12 @@ export function Header() {
                 </Link>
               ))}
               <div className="h-px bg-border my-2" />
+              <button
+                onClick={() => { setMobileMenuOpen(false); setSearchOpen(true); }}
+                className="px-4 py-3 text-text-primary font-medium flex items-center gap-3 hover:bg-border/50 rounded-md transition-colors text-left w-full"
+              >
+                <FiIcons.FiSearch size={18} /> Search Products
+              </button>
                <Link href={mounted ? userLink : "/login"} className="px-4 py-3 text-text-primary font-medium flex items-center gap-3">
                  <FiIcons.FiUser size={18} /> {mounted && isLoggedIn ? (isAdmin ? "Admin Panel" : "My Profile") : "My Account"}
                </Link>

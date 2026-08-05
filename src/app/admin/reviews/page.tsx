@@ -6,6 +6,7 @@ import {
   FiSearch, FiFilter, FiMessageSquare, FiAlertTriangle
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { apiFetch } from "@/lib/api-client";
 
 const STATUS_TABS = ["ALL", "PENDING", "APPROVED", "FLAGGED"] as const;
 type StatusTab = typeof STATUS_TABS[number];
@@ -43,8 +44,8 @@ export default function AdminReviewsPage() {
       if (!res.ok) throw new Error("Failed to load reviews");
       const data = await res.json();
       setReviews(data);
-    } catch (err: any) {
-      toast.error(err.message || "Could not load reviews.");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "Could not load reviews.");
     } finally {
       setIsLoading(false);
     }
@@ -76,12 +77,12 @@ export default function AdminReviewsPage() {
     if (!confirm("Permanently delete this review?")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/reviews/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/admin/reviews/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setReviews((prev) => prev.filter((r) => r.id !== id));
       toast.success("Review deleted.");
-    } catch (err: any) {
-      toast.error(err.message || "Could not delete review.");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "Could not delete review.");
     } finally {
       setDeletingId(null);
     }
@@ -89,7 +90,7 @@ export default function AdminReviewsPage() {
 
   const handleFlag = async (id: string, isFlagged: boolean) => {
     try {
-      const res = await fetch(`/api/admin/reviews/${id}`, {
+      const res = await apiFetch(`/api/admin/reviews/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isFlagged: !isFlagged }),

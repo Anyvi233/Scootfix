@@ -2,7 +2,7 @@ export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
-  errors?: any;
+  errors?: unknown;
 }
 
 export interface PaginatedResponse<T> {

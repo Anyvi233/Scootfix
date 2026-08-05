@@ -72,7 +72,7 @@ export function SearchModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}&skip=0&take=5`);
         if (res.ok) {
           const data = await res.json();
           setResults(data);

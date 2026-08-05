@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { toast } from "react-hot-toast";
+import { apiFetch } from "@/lib/api-client";
 
 // ── Password strength ──────────────────────────────────────────────────────────
 const RULES = [
@@ -78,7 +79,7 @@ export default function RegisterPage() {
 
     try {
       // Step 1: Register user
-      const res = await fetch("/api/auth/register", {
+      const res = await apiFetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), email, password, confirmPassword }),

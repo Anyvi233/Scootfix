@@ -94,9 +94,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/admin/products error:", error);
-    return NextResponse.json({ error: error.message || "Failed to create product" }, { status: 400 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : "An error occurred") || "Failed to create product" }, { status: 400 });
   }
 }
 

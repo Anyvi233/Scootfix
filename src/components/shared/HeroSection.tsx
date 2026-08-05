@@ -75,8 +75,9 @@ export function HeroSection() {
       </motion.div>
 
       {/* ── Floating EV part images (parallax with mouse) ───── */}
+      {/* Hidden on mobile (overflow risk); visible md+ */}
       <motion.div
-        className="pointer-events-none absolute inset-0 z-0"
+        className="pointer-events-none absolute inset-0 z-0 hidden md:block"
         style={{ rotateX, rotateY, perspective: 1200 }}
       >
         {FLOATING_PARTS.map((part, i) => (
@@ -118,7 +119,7 @@ export function HeroSection() {
       />
 
       {/* ── Content ──────────────────────────────────────────── */}
-      <div className="relative z-20 container mx-auto px-6 md:px-10 py-32 md:py-40">
+      <div className="relative z-20 container mx-auto px-6 md:px-10 py-20 md:py-40">
         <motion.div
           className="max-w-2xl"
           variants={containerVariants}

@@ -11,7 +11,8 @@ export class OrderService {
     paymentMethod: string,
     paymentId?: string,
     notes?: string,
-    couponCode?: string
+    couponCode?: string,
+    deliveryOption?: string
   ) {
     // 1. Get cart items using CartRepository
     const cartItems = await CartRepository.findManyByUserId(userId);
@@ -62,8 +63,23 @@ export class OrderService {
     }
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-    const tax = Math.round(discountedSubtotal * 0.18); // 18% GST
-    const shipping = discountedSubtotal > 5000 || isFreeShipping ? 0 : 250; // Align with checkout logic
+    
+    // GST — only active when a real GSTIN is configured in .env
+    const gstNumber = process.env.NEXT_PUBLIC_GST_NUMBER || "";
+    const gstRate = Number(process.env.NEXT_PUBLIC_GST_RATE || 18);
+    const codFee = paymentMethod === "cod" ? 50 : 0;
+    
+    let baseShipping = 0;
+    if (deliveryOption === "express") {
+      baseShipping = 600;
+    } else if (deliveryOption === "saturday") {
+      baseShipping = 800;
+    } else {
+      baseShipping = (discountedSubtotal > 5000 || isFreeShipping) ? 0 : 250;
+    }
+    
+    const shipping = baseShipping + codFee;
+    const tax = gstNumber ? Math.round((discountedSubtotal + shipping) * (gstRate / 100)) : 0;
     const total = discountedSubtotal + tax + shipping;
 
     // 4. Delegate transaction to OrderRepository

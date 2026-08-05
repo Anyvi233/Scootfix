@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# ScootFix pre-commit hook — blocks commits that contain hardcoded secrets
+echo "🔐 Running secret scan before commit..."
+npm run secret-scan
+if [ $? -ne 0 ]; then
+  echo "❌ Secret detected! Commit aborted. Remove the secret and try again."
+  exit 1
+fi
+echo "✅ Secret scan passed."

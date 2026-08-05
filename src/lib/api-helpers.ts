@@ -6,7 +6,7 @@ export function successResponse<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
 }
 
-export function errorResponse(message: string, status = 400, errors?: any) {
+export function errorResponse(message: string, status = 400, errors?: unknown) {
   return NextResponse.json(
     { success: false, error: message, errors },
     { status }
@@ -39,8 +39,8 @@ export async function withAuth(
       return errorResponse("Unauthorized", 401);
     }
     return await handler(user);
-  } catch (error: any) {
-    return errorResponse(error.message || "Internal server error", 500);
+  } catch (error: unknown) {
+    return errorResponse((error instanceof Error ? error.message : "An error occurred") || "Internal server error", 500);
   }
 }
 
@@ -53,7 +53,7 @@ export async function withAdmin(
       return errorResponse("Forbidden", 403);
     }
     return await handler(user);
-  } catch (error: any) {
-    return errorResponse(error.message || "Internal server error", 500);
+  } catch (error: unknown) {
+    return errorResponse((error instanceof Error ? error.message : "An error occurred") || "Internal server error", 500);
   }
 }

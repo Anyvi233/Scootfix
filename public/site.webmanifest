@@ -1,11 +1,16 @@
 {
-  "name": "ScootFix EV Spares & Upgrades",
+  "name": "ScootFix — Premium EV Spare Parts",
   "short_name": "ScootFix",
-  "description": "Premium EV Spare Parts & Performance Upgrades",
-  "start_url": "/",
+  "description": "India's leading marketplace for premium electric vehicle spare parts. Genuine and aftermarket parts for Ather, Ola, TVS iQube and more.",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
+  "categories": ["shopping", "automotive"],
   "icons": [
     {
       "src": "/logo.png",
@@ -18,6 +23,30 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Shop Parts",
+      "short_name": "Shop",
+      "description": "Browse all EV spare parts",
+      "url": "/shop",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "description": "View your order history",
+      "url": "/orders",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
 }

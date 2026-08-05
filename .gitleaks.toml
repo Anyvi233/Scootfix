@@ -1,0 +1,42 @@
+# Gitleaks configuration for ScootFix
+# https://github.com/gitleaks/gitleaks
+
+title = "ScootFix Secret Scanner"
+
+[extend]
+# Extend default ruleset
+useDefault = true
+
+[[rules]]
+id = "nextauth-secret-placeholder"
+description = "Detect placeholder NEXTAUTH_SECRET that was never changed"
+regex = '''super-secret-random-key'''
+tags = ["secret", "nextauth"]
+
+[[rules]]
+id = "google-oauth-secret"
+description = "Google OAuth client secret"
+regex = '''GOCSPX-[0-9A-Za-z_-]{28}'''
+tags = ["secret", "google", "oauth"]
+
+[[rules]]
+id = "generic-api-key-inline"
+description = "Possible hardcoded API key inline in source files"
+regex = '''(?i)(api_key|apikey|secret_key|client_secret)\s*=\s*['"][0-9A-Za-z_\-]{16,}['"]'''
+tags = ["secret", "api-key"]
+
+[allowlist]
+description = "Allowlisted files and patterns"
+paths = [
+  # Example files are safe — they contain placeholders, not real secrets
+  '''.env\.example''',
+  # Gitleaks config itself
+  '''.gitleaks\.toml''',
+]
+regexes = [
+  # Placeholder values in .env.example are fine
+  '''your-nextauth-secret''',
+  '''your-google-client''',
+  '''your-gmail-app-password''',
+  '''GOCSPX-your-google''',
+]

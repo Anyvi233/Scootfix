@@ -13,7 +13,7 @@ export class OrderRepository {
    */
   static async createOrderTransactional(
     userId: string,
-    cartItems: any[],
+    cartItems: (import("@prisma/client").CartItem & { product: import("@prisma/client").Product })[],
     subtotal: number,
     tax: number,
     shipping: number,
@@ -53,12 +53,19 @@ export class OrderRepository {
           include: { items: true },
         });
 
-        // 2. Decrement stock & log inventory changes
+        // 2. Decrement stock & log inventory changes with guard
         for (const item of cartItems) {
-          await tx.product.update({
-            where: { id: item.productId },
+          const updated = await tx.product.updateMany({
+            where: {
+              id: item.productId,
+              stock: { gte: item.quantity },
+            },
             data: { stock: { decrement: item.quantity } },
           });
+          if (updated.count === 0) {
+            // No rows updated means insufficient stock at transaction time
+            throw new Error(`Insufficient stock for ${item.product.name}`);
+          }
 
           await tx.inventoryLog.create({
             data: {

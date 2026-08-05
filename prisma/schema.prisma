@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 
@@ -28,9 +29,14 @@ model User {
   wishlist      Wishlist[]
   returns       Return[]
   inventoryLogs InventoryLog[]
+  verificationTokens VerificationToken[]
+  auditLogs     AuditLog[]
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([role])
+  @@index([createdAt])
 }
 
 model Account {
@@ -50,6 +56,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -58,6 +65,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Category {
@@ -74,6 +83,8 @@ model Category {
   
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+
+  @@index([parentId])
 }
 
 model Brand {
@@ -106,6 +117,8 @@ model VehicleModel {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([brandId])
 }
 
 model Product {
@@ -143,6 +156,12 @@ model Product {
   
   @@index([categoryId])
   @@index([brandId])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([isActive, isFeatured])   // composite: featured active products page
+  @@index([price])                  // price range filters
+  @@index([stock])                  // low-stock admin alerts
+  @@index([createdAt])              // newest products sort
 }
 
 model ProductImage {
@@ -156,6 +175,8 @@ model ProductImage {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([productId])
 }
 
 model ProductCompatibility {
@@ -170,6 +191,7 @@ model ProductCompatibility {
   vehicleModel    VehicleModel @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
   
   @@unique([productId, vehicleModelId])
+  @@index([vehicleModelId])   // find compatible products for a given vehicle
 }
 
 model CartItem {
@@ -203,7 +225,7 @@ model Wishlist {
 model Order {
   id              String      @id @default(cuid())
   orderNumber     String      @unique
-  userId          String
+  userId          String?
   status          String @default("PENDING")
   subtotal        Float
   tax             Float
@@ -217,7 +239,7 @@ model Order {
   trackingNumber  String?
   trackingUrl     String?
   
-  user            User        @relation(fields: [userId], references: [id])
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   items           OrderItem[]
   returns         Return[]
   
@@ -225,6 +247,10 @@ model Order {
   updatedAt       DateTime    @updatedAt
   
   @@index([userId])
+  @@index([status])                 // admin order queue filter
+  @@index([createdAt])              // admin date-range sort
+  @@index([userId, status])         // my-orders filtered by status
+  @@index([paymentId])              // payment webhook lookup
 }
 
 model OrderItem {
@@ -242,6 +268,9 @@ model OrderItem {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([productId])              // sales analytics per product
 }
 
 model Review {
@@ -262,6 +291,10 @@ model Review {
   updatedAt     DateTime @updatedAt
   
   @@unique([userId, productId])
+  @@index([productId])              // fetch all reviews for a product
+  @@index([userId])                 // fetch reviews by a user
+  @@index([productId, rating])      // aggregate ratings per product
+  @@index([isFlagged])              // admin moderation queue
 }
 
 model Address {
@@ -282,6 +315,9 @@ model Address {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isDefault])      // fast fetch of default address
 }
 
 model Return {
@@ -299,6 +335,11 @@ model Return {
   
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])                 // admin return queue filter
+  @@index([createdAt])
 }
 
 model ReturnItem {
@@ -310,6 +351,9 @@ model ReturnItem {
   
   returnReq   Return     @relation(fields: [returnId], references: [id], onDelete: Cascade)
   orderItem   OrderItem  @relation(fields: [orderItemId], references: [id])
+
+  @@index([returnId])
+  @@index([orderItemId])
 }
 
 model InventoryLog {
@@ -323,6 +367,11 @@ model InventoryLog {
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([userId])
+  @@index([createdAt])              // inventory history timeline
+  @@index([productId, createdAt])   // per-product history sorted by time
 }
 
 model ContactMessage {
@@ -336,6 +385,9 @@ model ContactMessage {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([isRead])                 // admin unread inbox filter
+  @@index([createdAt])              // admin inbox sort by date
 }
 
 model AuditLog {
@@ -349,11 +401,14 @@ model AuditLog {
   ipAddress   String?
   userAgent   String?
 
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   createdAt   DateTime @default(now())
 
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+  @@index([targetType, targetId])   // lookup all events for a specific resource
 }
 
 model Coupon {
@@ -371,4 +426,19 @@ model Coupon {
   updatedAt       DateTime  @updatedAt
 
   @@index([code])
+  @@index([isActive])               // filter active coupons only
+  @@index([expiresAt])              // expiry cleanup jobs
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  type      String   // "EMAIL_VERIFICATION", "PASSWORD_RESET"
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [email], references: [email], onDelete: Cascade)
+
+  @@index([email])
 }

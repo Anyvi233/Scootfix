@@ -66,11 +66,11 @@ export async function POST(req: NextRequest) {
             productId,
             change: parsedChange,
             reason,
-            userId: user.id,
+            userId: user?.id || "",
           },
         });
 
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           stock: newStock,
         };
 
@@ -94,9 +94,9 @@ export async function POST(req: NextRequest) {
       });
 
       return NextResponse.json({ success: true, product: updatedProduct });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("POST /api/admin/inventory error:", err);
-      return NextResponse.json({ error: err.message || "Failed to update inventory." }, { status: 500 });
+      return NextResponse.json({ error: (err instanceof Error ? err.message : "An error occurred") || "Failed to update inventory." }, { status: 500 });
     }
   });
 }

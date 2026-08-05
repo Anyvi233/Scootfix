@@ -24,6 +24,7 @@ import { authOptions } from "@/lib/auth";
 import { applySecurityHeaders } from "./headers";
 import { applyApiRateLimit, applyAuthRateLimit, applyAdminRateLimit } from "./rate-limiter";
 import { logUnauthorizedAccess } from "./audit-logger";
+import { createHash } from "crypto";
 
 type RateLimitType = "auth" | "api" | "admin" | "none";
 
@@ -36,7 +37,7 @@ interface GuardOptions {
   rateLimit?: RateLimitType;
 }
 
-type GuardedHandler = (user: any | null) => Promise<NextResponse>;
+type GuardedHandler = (user: import("@prisma/client").User | null) => Promise<NextResponse>;
 
 function withHeaders(res: NextResponse): NextResponse {
   applySecurityHeaders(res);
@@ -53,6 +54,40 @@ function unauthorized(message = "Unauthorized"): NextResponse {
   return withHeaders(
     NextResponse.json({ success: false, error: message }, { status: 401 })
   );
+}
+
+function validateCSRF(req: NextRequest): boolean {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return true;
+  if (req.nextUrl.pathname.startsWith("/api/webhooks")) return true;
+
+  const cookieName = process.env.NODE_ENV === "production" ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token";
+  const csrfCookie = req.cookies.get(cookieName)?.value;
+  console.log("[CSRF DEBUG] cookieName:", cookieName, "csrfCookie exists:", !!csrfCookie);
+  if (!csrfCookie) return false;
+
+  const parts = csrfCookie.split("|");
+  if (parts.length !== 2) {
+    console.log("[CSRF DEBUG] csrfCookie split parts length !== 2:", parts);
+    return false;
+  }
+  const [csrfToken, cookieHash] = parts;
+  const secret = process.env.NEXTAUTH_SECRET || "";
+
+  const headerToken = req.headers.get("x-csrf-token");
+  console.log("[CSRF DEBUG] headerToken:", headerToken, "csrfToken:", csrfToken);
+  if (!headerToken) return false;
+
+  // The client getCsrfToken() returns the raw token value.
+  // We compare it directly to the raw token extracted from the cookie.
+  if (headerToken !== csrfToken) {
+    console.log("[CSRF DEBUG] headerToken !== csrfToken mismatch");
+    return false;
+  }
+
+  const expectedHash = createHash("sha256").update(`${csrfToken}${secret}`).digest("hex");
+  const hashMatches = cookieHash === expectedHash;
+  console.log("[CSRF DEBUG] cookieHash:", cookieHash, "expectedHash:", expectedHash, "matches:", hashMatches);
+  return hashMatches;
 }
 
 export async function apiGuard(
@@ -76,9 +111,14 @@ export async function apiGuard(
     }
   }
 
-  // 2. Authentication
+  // 2. CSRF Protection
+  if (!validateCSRF(req)) {
+    return forbidden("Invalid or missing CSRF token.");
+  }
+
+  // 3. Authentication
   const session = await getServerSession(authOptions);
-  const user = session?.user as any | null;
+  const user = session?.user as import("@prisma/client").User | null;
 
   if (auth && !user) {
     await logUnauthorizedAccess(req.nextUrl.pathname, ip);
@@ -96,7 +136,7 @@ export async function apiGuard(
     const response = await handler(user);
     applySecurityHeaders(response);
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[API ERROR] ${req.nextUrl.pathname}:`, error);
     return withHeaders(
       NextResponse.json(

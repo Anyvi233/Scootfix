@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { toast } from "react-hot-toast";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api-client";
 
 const RETURN_REASONS = [
   "Defective or does not work",
@@ -55,7 +56,7 @@ function ReturnsForm() {
         const res = await fetch("/api/orders");
         if (!res.ok) throw new Error("Could not load orders.");
         const data = await res.json();
-        const found = (data.items || []).find((o: any) => o.id === queryOrderId);
+        const found = (data.items || []).find((o: import("@/types/models").OrderWithItems) => o.id === queryOrderId);
         if (!found) throw new Error("Order not found in your account.");
         setOrder({ id: found.id, orderNumber: found.orderNumber, items: found.items });
         setReturnItems(
@@ -66,8 +67,8 @@ function ReturnsForm() {
             selected: true,
           }))
         );
-      } catch (err: any) {
-        setOrderError(err.message || "Failed to load order.");
+      } catch (err: unknown) {
+        setOrderError((err instanceof Error ? err.message : "An error occurred") || "Failed to load order.");
       } finally {
         setIsLoadingOrder(false);
       }
@@ -114,7 +115,7 @@ function ReturnsForm() {
         })),
       };
 
-      const res = await fetch("/api/returns", {
+      const res = await apiFetch("/api/returns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -125,8 +126,8 @@ function ReturnsForm() {
 
       setIsSubmitted(true);
       toast.success("Return request submitted successfully!");
-    } catch (err: any) {
-      toast.error(err.message || "Something went wrong.");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "Something went wrong.");
     } finally {
       setIsLoading(false);
     }

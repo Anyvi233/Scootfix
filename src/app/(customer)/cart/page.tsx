@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { FaWhatsapp } from "react-icons/fa";
+import { apiFetch } from "@/lib/api-client";
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, addToCart, cartSubtotal, cartCount } = useCart();
@@ -93,7 +94,7 @@ export default function CartPage() {
     if (!code) return;
     setIsCouponLoading(true);
     try {
-      const res = await fetch("/api/coupons/validate", {
+      const res = await apiFetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, orderAmount: cartSubtotal }),

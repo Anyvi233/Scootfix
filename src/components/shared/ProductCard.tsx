@@ -81,7 +81,17 @@ export function ProductCard({
       {mounted && selectedVehicle && compatibilities && (
         <div className="absolute top-3 left-3 z-10">
           {(() => {
-            const { compatible } = isCompatible(compatibilities);
+            const { compatible } = isCompatible(
+              compatibilities.map(c => ({
+                vehicleId: "unknown",
+                vehicleModel: { 
+                  brand: c.brand, 
+                  model: c.model, 
+                  yearStart: parseInt(c.years.split('-')[0]) || 0, 
+                  yearEnd: parseInt(c.years.split('-')[1]) || 0 
+                }
+              }))
+            );
             return (
               <Badge
                 variant={compatible ? "success" : "warning"}

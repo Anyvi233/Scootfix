@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
+import { apiFetch } from "@/lib/api-client";
 
 const DELIVERY_OPTIONS = [
   { id: "standard", label: "Standard Delivery", price: 250, description: "Delivered in 3-5 business days" },
@@ -47,6 +48,30 @@ export default function CheckoutPage() {
   });
   const [upiId, setUpiId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // Tracks whether the mobile virtual keyboard is open (iOS Safari visualViewport)
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const formRef = React.useRef<HTMLDivElement>(null);
+
+  // iOS Safari visual viewport resize = keyboard open/close
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const onResize = () => {
+      // If the visual viewport height is significantly less than the window height,
+      // the keyboard is open.
+      setKeyboardOpen(vv.height < window.innerHeight * 0.75);
+    };
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
+
+  // Scroll form back to top when moving to a new step
+  const goToStep = (n: number) => {
+    setStep(n);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
 
   // Coupon States
   const [couponInput, setCouponInput] = useState("");
@@ -116,12 +141,12 @@ export default function CheckoutPage() {
       toast.error("Please fill in all shipping fields.");
       return;
     }
-    setStep(2);
+    goToStep(2);
   };
 
   const handleDeliverySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setStep(3);
+    goToStep(3);
   };
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
@@ -130,7 +155,7 @@ export default function CheckoutPage() {
     if (!code) return;
     setIsCouponLoading(true);
     try {
-      const res = await fetch("/api/coupons/validate", {
+      const res = await apiFetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, orderAmount: cartSubtotal }),
@@ -176,7 +201,7 @@ export default function CheckoutPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/orders", {
+      const response = await apiFetch("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -196,6 +221,7 @@ export default function CheckoutPage() {
           paymentId: paymentMethod === "upi" ? upiId : paymentMethod === "card" ? "CARD-SIMULATED" : "COD-SIMULATED",
           notes: `Delivery: ${selectedDelivery?.label}`,
           couponCode: appliedCoupon || null,
+          deliveryOption,
         }),
       });
 
@@ -207,7 +233,6 @@ export default function CheckoutPage() {
       const order = await response.json();
       toast.success("Order Placed Successfully!");
       
-      // Save order metadata to sessionStorage to render the printable invoice on order success page
       const invoiceData = {
         orderId: order.orderNumber,
         date: new Date(order.createdAt).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -225,13 +250,12 @@ export default function CheckoutPage() {
       
       sessionStorage.setItem("scootfix_latest_invoice", JSON.stringify(invoiceData));
       
-      // Clear cart and sessionStorage coupon
       clearCart();
       sessionStorage.removeItem("scootfix_applied_coupon");
       
       router.push(`/order-success?id=${order.orderNumber}`);
-    } catch (e: any) {
-      toast.error(e.message || "Checkout failed. Please try again.");
+    } catch (e: unknown) {
+      toast.error((e as Error).message || "Checkout failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -258,14 +282,12 @@ export default function CheckoutPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
-        {/* Checkout Wizard Steps */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6" ref={formRef}>
           
-          {/* Step Headers */}
           <div className="grid grid-cols-3 gap-2 border-b border-border pb-4">
             <button 
               type="button"
-              onClick={() => step > 1 && setStep(1)}
+              onClick={() => step > 1 && goToStep(1)}
               className={`text-left pb-2 border-b-2 transition-all ${step === 1 ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
             >
               <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Step 1</p>
@@ -273,7 +295,7 @@ export default function CheckoutPage() {
             </button>
             <button 
               type="button"
-              onClick={() => step > 2 && setStep(2)}
+              onClick={() => step > 2 && goToStep(2)}
               className={`text-left pb-2 border-b-2 transition-all ${step === 2 ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
               disabled={step < 2}
             >
@@ -290,7 +312,6 @@ export default function CheckoutPage() {
             </button>
           </div>
 
-          {/* STEP 1: Address Details */}
           {step === 1 && (
             <form onSubmit={handleAddressSubmit} className="bg-surface border border-border rounded-xl p-6 space-y-4">
               <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4"><FiMapPin className="text-primary"/> Shipping & Billing Address</h2>
@@ -304,6 +325,8 @@ export default function CheckoutPage() {
                     onChange={e => setShippingAddress(p => ({ ...p, name: e.target.value }))}
                     placeholder="Enter full name" 
                     required 
+                    autoComplete="name"
+                    enterKeyHint="next"
                   />
                 </div>
                 <div className="space-y-1">
@@ -314,6 +337,9 @@ export default function CheckoutPage() {
                     onChange={e => setShippingAddress(p => ({ ...p, phone: e.target.value }))}
                     placeholder="e.g. 9876543210" 
                     required 
+                    autoComplete="tel"
+                    inputMode="tel"
+                    enterKeyHint="next"
                   />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
@@ -324,6 +350,9 @@ export default function CheckoutPage() {
                     onChange={e => setShippingAddress(p => ({ ...p, email: e.target.value }))}
                     placeholder="name@example.com" 
                     required 
+                    autoComplete="email"
+                    inputMode="email"
+                    enterKeyHint="next"
                   />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
@@ -334,6 +363,8 @@ export default function CheckoutPage() {
                     onChange={e => setShippingAddress(p => ({ ...p, street: e.target.value }))}
                     placeholder="Flat/House No, Building, Area" 
                     required 
+                    autoComplete="street-address"
+                    enterKeyHint="next"
                   />
                 </div>
                 <div className="space-y-1">
@@ -343,6 +374,8 @@ export default function CheckoutPage() {
                     value={shippingAddress.city} 
                     onChange={e => setShippingAddress(p => ({ ...p, city: e.target.value }))}
                     required 
+                    autoComplete="address-level2"
+                    enterKeyHint="next"
                   />
                 </div>
                 <div className="space-y-1">
@@ -352,6 +385,8 @@ export default function CheckoutPage() {
                     value={shippingAddress.state} 
                     onChange={e => setShippingAddress(p => ({ ...p, state: e.target.value }))}
                     required 
+                    autoComplete="address-level1"
+                    enterKeyHint="next"
                   />
                 </div>
                 <div className="space-y-1">
@@ -361,17 +396,20 @@ export default function CheckoutPage() {
                     value={shippingAddress.zipCode} 
                     onChange={e => setShippingAddress(p => ({ ...p, zipCode: e.target.value }))}
                     required 
+                    autoComplete="postal-code"
+                    inputMode="numeric"
+                    enterKeyHint="done"
                   />
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-12 mt-6" rightIcon={<FiArrowRight />}>
+              <Button type="submit" className="w-full h-12 mt-6 hidden sm:flex" rightIcon={<FiArrowRight />}>
                 Continue to Delivery Options
               </Button>
+              <div className="h-20 sm:hidden" />
             </form>
           )}
 
-          {/* STEP 2: Delivery Options */}
           {step === 2 && (
             <form onSubmit={handleDeliverySubmit} className="bg-surface border border-border rounded-xl p-6 space-y-4">
               <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4"><FiTruck className="text-primary"/> Select Delivery Option</h2>
@@ -407,7 +445,7 @@ export default function CheckoutPage() {
               </div>
 
               <div className="flex gap-4 pt-6">
-                <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => setStep(1)}>
+                <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(1)}>
                   Back to Address
                 </Button>
                 <Button type="submit" className="flex-1 h-12" rightIcon={<FiArrowRight />}>
@@ -417,14 +455,11 @@ export default function CheckoutPage() {
             </form>
           )}
 
-          {/* STEP 3: Payment Section */}
           {step === 3 && (
-            <form onSubmit={handlePlaceOrder} className="bg-surface border border-border rounded-xl p-6 space-y-4">
+            <form data-step="3" onSubmit={handlePlaceOrder} className="bg-surface border border-border rounded-xl p-6 space-y-4">
               <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4"><FiCreditCard className="text-primary"/> Select Payment Method</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* Method selector */}
                 <div className="md:col-span-1 flex flex-col gap-2">
                   {PAYMENT_METHODS.map(method => (
                     <button
@@ -438,7 +473,6 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Method details fields */}
                 <div className="md:col-span-2 border border-border rounded-xl p-4 bg-background">
                   {paymentMethod === "upi" && (
                     <div className="space-y-4">
@@ -451,6 +485,8 @@ export default function CheckoutPage() {
                           value={upiId}
                           onChange={e => setUpiId(e.target.value)}
                           required
+                          inputMode="text"
+                          enterKeyHint="done"
                         />
                       </div>
                     </div>
@@ -466,6 +502,7 @@ export default function CheckoutPage() {
                           value={cardDetails.number}
                           onChange={e => setCardDetails(p => ({ ...p, number: e.target.value }))}
                           required 
+                          inputMode="numeric"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -488,6 +525,7 @@ export default function CheckoutPage() {
                             value={cardDetails.cvc}
                             onChange={e => setCardDetails(p => ({ ...p, cvc: e.target.value }))}
                             required 
+                            inputMode="numeric"
                           />
                         </div>
                       </div>
@@ -517,11 +555,10 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
-
               </div>
 
               <div className="flex gap-4 pt-8">
-                <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => setStep(2)}>
+                <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(2)}>
                   Back to Delivery
                 </Button>
                 <Button type="submit" className="flex-1 h-12 shadow-glow" isLoading={isLoading} leftIcon={<FiLock />}>
@@ -533,12 +570,9 @@ export default function CheckoutPage() {
 
         </div>
 
-        {/* Order Summary Sidebar */}
         <div className="space-y-4">
           <div className="bg-surface border border-border rounded-xl p-6 space-y-6">
             <h2 className="text-xl font-display font-bold text-text-primary">Order Summary</h2>
-
-            {/* Cart Items list */}
             <div className="divide-y divide-border max-h-60 overflow-y-auto pr-2">
               {cart.map((item) => (
                 <div key={item.id} className="py-3 flex justify-between gap-3 text-sm">
@@ -553,7 +587,6 @@ export default function CheckoutPage() {
               ))}
             </div>
 
-            {/* Promo Code Validation Form */}
             <div className="border-t border-border pt-4">
               {appliedCoupon ? (
                 <div className="flex items-center justify-between p-3 bg-success/5 border border-success/15 rounded-xl">
@@ -636,7 +669,65 @@ export default function CheckoutPage() {
             </div>
           </div>
         </div>
+      </div>
 
+      <div
+        className="sm:hidden fixed left-0 right-0 z-40 bg-surface border-t border-border px-4 py-3 shadow-lg transition-all duration-200"
+        style={{
+          bottom: 0,
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+        }}
+      >
+        {step === 1 && (
+          <Button
+            type="button"
+            className="w-full h-12"
+            rightIcon={<FiArrowRight />}
+            onClick={() => {
+              if (!isAddressValid()) {
+                toast.error("Please fill in all shipping fields.");
+                return;
+              }
+              goToStep(2);
+            }}
+          >
+            Continue to Delivery Options
+          </Button>
+        )}
+        {step === 2 && (
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(1)}>
+              Back
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 h-12"
+              rightIcon={<FiArrowRight />}
+              onClick={() => goToStep(3)}
+            >
+              Continue to Payment
+            </Button>
+          </div>
+        )}
+        {step === 3 && (
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(2)}>
+              Back
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 h-12 shadow-glow"
+              isLoading={isLoading}
+              leftIcon={<FiLock />}
+              onClick={(e) => {
+                const form = document.querySelector<HTMLFormElement>('form[data-step="3"]');
+                form?.requestSubmit();
+              }}
+            >
+              Pay {formatPrice(totalCost)}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

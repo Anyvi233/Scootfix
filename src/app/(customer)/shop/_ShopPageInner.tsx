@@ -78,7 +78,7 @@ export default function ShopPageInner() {
         );
         if (brandMatch?.vehicles) {
           const modelMatch = brandMatch.vehicles.find(
-            (v: any) => v.name.toLowerCase().includes(selectedVehicle.model.toLowerCase()) ||
+            (v: { name: string, model: string }) => v.name.toLowerCase().includes(selectedVehicle.model.toLowerCase()) ||
                        selectedVehicle.model.toLowerCase().includes(v.name.toLowerCase())
           );
           if (modelMatch) {
@@ -91,7 +91,14 @@ export default function ShopPageInner() {
       const res = await fetch(`/api/products?${params.toString()}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setProducts(data.items || []);
+      
+      const incomingPage = parseInt(params.get("page") || "1");
+      if (incomingPage > 1) {
+        setProducts(prev => [...prev, ...(data.items || [])]);
+      } else {
+        setProducts(data.items || []);
+      }
+      
       setPagination({ total: data.total || 0, page: data.page || 1, limit: data.limit || 12, totalPages: data.totalPages || 1 });
     } catch {
       setError("Could not load products. Please try again.");
@@ -226,11 +233,11 @@ export default function ShopPageInner() {
           ) : products.length > 0 ? (
             <React.Fragment key="products-grid-fragment">
               <div key="products-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map((product) => {
+                {products.map((product, idx) => {
                   const image = product.images?.[0]?.url || "/placeholder.jpg";
                   const categoryName = product.category?.name || "Spare Parts";
                   return (
-                    <div key={product.id}>
+                    <div key={`${product.id}-${idx}`}>
                       <ProductCard
                         id={product.id} name={product.name} slug={product.slug}
                         price={product.price} compareAtPrice={product.compareAtPrice}
@@ -245,7 +252,23 @@ export default function ShopPageInner() {
                   );
                 })}
               </div>
-              <Pagination currentPage={pagination.page} totalPages={pagination.totalPages} totalItems={pagination.total} itemsPerPage={pagination.limit} />
+              
+              {pagination.page < pagination.totalPages && (
+                <div className="flex justify-center mt-12">
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => {
+                      const params = new URLSearchParams(searchParams.toString());
+                      params.set("page", (pagination.page + 1).toString());
+                      router.push(`/shop?${params.toString()}`, { scroll: false });
+                    }}
+                    isLoading={isLoading}
+                  >
+                    Load More Products
+                  </Button>
+                </div>
+              )}
             </React.Fragment>
           ) : (
             <div key="empty-container" className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-2xl bg-surface/50" role="status">

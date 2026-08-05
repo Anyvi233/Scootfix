@@ -69,7 +69,7 @@ export default async function ProductPage(
     images: product.images,
     brand: product.brand,
     rating: product.rating,
-    reviewsCount: (product as any).reviewsCount ?? product._count?.reviews,
+    reviewsCount: (product as import("@prisma/client").Product & { _count?: { reviews: number } })._count?.reviews ?? product._count?.reviews,
   });
 
   const breadcrumbSchema = breadcrumbJsonLd([

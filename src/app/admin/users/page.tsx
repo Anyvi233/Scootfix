@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { FiUsers, FiEdit, FiTrash, FiShield, FiUserCheck, FiAlertCircle } from "react-icons/fi";
 import { Button } from "@/components/ui/Button";
 import { toast } from "react-hot-toast";
+import { apiFetch } from "@/lib/api-client";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -20,9 +21,9 @@ export default function AdminUsersPage() {
       }
       const data = await res.json();
       setUsers(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "An error occurred while loading user directory.");
+      setError((err instanceof Error ? err.message : "An error occurred") || "An error occurred while loading user directory.");
     } finally {
       setIsLoading(false);
     }
@@ -35,7 +36,7 @@ export default function AdminUsersPage() {
   const toggleRole = async (userId: string, currentRole: string) => {
     const nextRole = currentRole === "ADMIN" ? "CUSTOMER" : "ADMIN";
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await apiFetch("/api/admin/users", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json"
@@ -49,8 +50,8 @@ export default function AdminUsersPage() {
 
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: nextRole } : u));
       toast.success("User role updated successfully");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to toggle role");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "Failed to toggle role");
     }
   };
 

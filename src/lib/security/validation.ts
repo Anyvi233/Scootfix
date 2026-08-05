@@ -172,10 +172,10 @@ export async function parseBody<T>(
 
     const data = schema.parse(body);
     return { data, error: null };
-  } catch (err: any) {
-    const issues = err?.issues ?? [];
+  } catch (err: unknown) {
+    const issues = (err as any)?.issues ?? [];
     const msg =
-      issues[0]?.message ?? err?.message ?? "Invalid request body";
+      issues[0]?.message ?? (err as any)?.message ?? "Invalid request body";
     return {
       data: null,
       error: NextResponse.json({ success: false, error: msg, issues }, { status: 422 }),

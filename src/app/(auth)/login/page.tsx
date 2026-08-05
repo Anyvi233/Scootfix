@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  FiMail, FiLock, FiAlertCircle,
+  FiMail, FiLock, FiAlertCircle, FiCheckCircle,
   FiArrowRight, FiEye, FiEyeOff,
 } from "react-icons/fi";
 import { Button } from "@/components/ui/Button";
@@ -26,17 +26,27 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const urlError = searchParams.get("error");
+  const isVerified = searchParams.get("verified") === "true";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(urlError || "");
+  const [success, setSuccess] = useState(isVerified ? "Email verified successfully! You can now log in." : "");
+
+  // Update error/success if URL params change
+  useEffect(() => {
+    if (urlError) setError(urlError);
+    if (isVerified) setSuccess("Email verified successfully! You can now log in.");
+  }, [urlError, isVerified]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
     if (!email || !password) {
       setError("Please fill in all fields.");
@@ -53,8 +63,8 @@ function LoginForm() {
       });
 
       if (res?.error) {
-        setError("Invalid email or password. Please try again.");
-        toast.error("Sign-in failed. Check your credentials.");
+        setError(res.error === "Please verify your email address to log in." ? res.error : "Invalid email or password. Please try again.");
+        toast.error(res.error === "Please verify your email address to log in." ? res.error : "Sign-in failed.");
       } else {
         toast.success("Welcome back! 👋");
         router.push(callbackUrl);
@@ -74,7 +84,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-[90vh] flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12" suppressHydrationWarning>
       <div className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-xl p-8 space-y-5">
 
         {/* Header */}
@@ -112,6 +122,14 @@ function LoginForm() {
             <span className="bg-surface px-3 text-text-muted font-semibold">Or sign in with email</span>
           </div>
         </div>
+
+        {/* Success Alert */}
+        {success && (
+          <div className="flex items-start gap-2 p-3 bg-success/10 border border-success/20 rounded-lg text-success text-sm">
+            <FiCheckCircle className="shrink-0 mt-0.5" size={16} />
+            <span>{success}</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (

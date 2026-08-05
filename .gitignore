@@ -41,3 +41,14 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Scratch & Debug helper scripts
+/scratch/
+/check.js
+/verify_admin.js
+/promote.js
+/test_hash.js
+/fix-fetch.js
+/make-admin-example.js
+/prisma/dev.db
+/prisma/dev.db-journal

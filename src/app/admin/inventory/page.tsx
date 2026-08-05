@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "react-hot-toast";
+import { apiFetch } from "@/lib/api-client";
 
 export default function InventoryDashboard() {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -50,7 +51,7 @@ export default function InventoryDashboard() {
     fetchInventory();
   }, []);
 
-  const openRestockModal = (product?: any) => {
+  const openRestockModal = (product?: import("@prisma/client").Product) => {
     if (product) {
       setRestockProductId(product.id);
       setRestockSupplier(product.supplier || "");
@@ -82,7 +83,7 @@ export default function InventoryDashboard() {
 
     setIsSubmittingRestock(true);
     try {
-      const res = await fetch("/api/admin/inventory", {
+      const res = await apiFetch("/api/admin/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -103,8 +104,8 @@ export default function InventoryDashboard() {
       toast.success("Inventory adjusted successfully!");
       setIsRestockOpen(false);
       fetchInventory();
-    } catch (err: any) {
-      toast.error(err.message || "An error occurred.");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "An error occurred.");
     } finally {
       setIsSubmittingRestock(false);
     }

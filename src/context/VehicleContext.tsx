@@ -13,7 +13,7 @@ interface VehicleContextType {
   selectedVehicle: SelectedVehicle | null;
   selectVehicle: (vehicle: SelectedVehicle) => void;
   clearVehicle: () => void;
-  isCompatible: (productCompatibility: any[]) => { compatible: boolean; reason: string };
+  isCompatible: (productCompatibility: { vehicleId: string, vehicleModel: { brand: string, model: string, yearStart: number, yearEnd: number } }[]) => { compatible: boolean; reason: string };
 }
 
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
@@ -33,18 +33,18 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const selectVehicle = (vehicle: SelectedVehicle) => {
+  const selectVehicle = React.useCallback((vehicle: SelectedVehicle) => {
     setSelectedVehicle(vehicle);
     localStorage.setItem("scootfix_vehicle", JSON.stringify(vehicle));
-  };
+  }, []);
 
-  const clearVehicle = () => {
+  const clearVehicle = React.useCallback(() => {
     setSelectedVehicle(null);
     localStorage.removeItem("scootfix_vehicle");
-  };
+  }, []);
 
   // Check if a product fits the selected vehicle
-  const isCompatible = (productCompatibility: any[]) => {
+  const isCompatible = React.useCallback((productCompatibility: { vehicleId: string, vehicleModel: { brand: string, model: string, yearStart: number, yearEnd: number } }[]) => {
     if (!selectedVehicle) {
       return { compatible: true, reason: "No vehicle selected" };
     }
@@ -54,18 +54,19 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
       let modelName = "";
       let yearsString = "";
 
-      if (comp.vehicleModel) {
+      const data = comp as any;
+      if (data.vehicleModel) {
         // Prisma DB format
-        brandName = comp.vehicleModel.brand?.name || "";
-        modelName = comp.vehicleModel.name || "";
-        const start = comp.yearStart || comp.vehicleModel.yearStart;
-        const end = comp.yearEnd || comp.vehicleModel.yearEnd || new Date().getFullYear();
+        brandName = data.vehicleModel.brand?.name || data.vehicleModel.brand || "";
+        modelName = data.vehicleModel.name || data.vehicleModel.model || "";
+        const start = data.yearStart || data.vehicleModel.yearStart;
+        const end = data.yearEnd || data.vehicleModel.yearEnd || new Date().getFullYear();
         yearsString = `${start}-${end}`;
       } else {
         // Fallback format
-        brandName = comp.brand || "";
-        modelName = comp.model || "";
-        yearsString = comp.years || "";
+        brandName = data.brand || "";
+        modelName = data.model || "";
+        yearsString = data.years || "";
       }
 
       const brandMatch = brandName.toLowerCase().includes(selectedVehicle.brand.toLowerCase()) ||
@@ -78,7 +79,7 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
       const vehicleYear = parseInt(selectedVehicle.year);
       
       if (yearsString.includes("-")) {
-        const [start, end] = yearsString.split("-").map(y => parseInt(y.trim()));
+        const [start, end] = yearsString.split("-").map((y: string) => parseInt(y.trim()));
         yearMatch = vehicleYear >= start && vehicleYear <= (end || new Date().getFullYear());
       } else if (yearsString) {
         yearMatch = parseInt(yearsString.trim()) === vehicleYear;
@@ -97,17 +98,17 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
       compatible: false, 
       reason: `Warning: This part is not verified to fit your ${selectedVehicle.brand} ${selectedVehicle.model} (${selectedVehicle.year})` 
     };
-  };
+  }, [selectedVehicle]);
+
+  const value = React.useMemo(() => ({
+    selectedVehicle,
+    selectVehicle,
+    clearVehicle,
+    isCompatible,
+  }), [selectedVehicle, selectVehicle, clearVehicle, isCompatible]);
 
   return (
-    <VehicleContext.Provider
-      value={{
-        selectedVehicle,
-        selectVehicle,
-        clearVehicle,
-        isCompatible,
-      }}
-    >
+    <VehicleContext.Provider value={value}>
       {children}
     </VehicleContext.Provider>
   );

@@ -20,7 +20,7 @@ const outfit = Outfit({
   preload: true,
 });
 
-const BASE_URL = process.env.NEXTAUTH_URL || "https://scootfix.in";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || "https://scootfix.in";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -75,6 +75,9 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

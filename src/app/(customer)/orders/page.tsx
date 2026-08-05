@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { OrderTracker, OrderStatus } from "@/components/shared/OrderTracker";
+import { apiFetch } from "@/lib/api-client";
+import { AddressJson } from "@/types/json";
 
 const STATUS_COLOR: Record<string, string> = {
   PENDING:    "bg-info/10 text-info border-info/20",
@@ -88,7 +90,7 @@ export default function OrdersPage() {
       year: "numeric",
     });
 
-    const address = o.shippingAddress || {};
+    const address = (o.shippingAddress as unknown as AddressJson) || {} as AddressJson;
     const name = address.name || `${address.firstName || ""} ${address.lastName || ""}`.trim();
     const zip = address.zipCode || address.zip || "";
     const addressHtml = `
@@ -480,16 +482,18 @@ export default function OrdersPage() {
                         </div>
 
                         {/* Shipping Address */}
-                        {order.shippingAddress && (
+                        {order.shippingAddress && (() => {
+                          const addr = order.shippingAddress as unknown as AddressJson;
+                          return (
                           <div className="mt-5 pt-5 border-t border-border flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                             <div className="space-y-4">
                               <div>
                                 <h3 className="text-xs uppercase font-bold tracking-widest text-text-muted mb-2">Shipping Address</h3>
                                 <p className="text-sm text-text-secondary">
-                                  {order.shippingAddress.name || `${order.shippingAddress.firstName || ""} ${order.shippingAddress.lastName || ""}`.trim()}<br />
-                                  {order.shippingAddress.street}, {order.shippingAddress.city}<br />
-                                  {order.shippingAddress.state} – {order.shippingAddress.zipCode || order.shippingAddress.zip}
-                                  {order.shippingAddress.phone && <><br />Phone: {order.shippingAddress.phone}</>}
+                                  {addr.name || `${addr.firstName || ""} ${addr.lastName || ""}`.trim()}<br />
+                                  {addr.street}, {addr.city}<br />
+                                  {addr.state} – {addr.zipCode || addr.zip}
+                                  {addr.phone && <><br />Phone: {addr.phone}</>}
                                 </p>
                               </div>
                               {order.trackingNumber && (
@@ -530,7 +534,8 @@ export default function OrdersPage() {
                               )}
                             </div>
                           </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

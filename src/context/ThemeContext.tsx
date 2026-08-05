@@ -41,12 +41,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [theme]);
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = React.useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-  };
+  }, []);
+
+  const value = React.useMemo(() => ({ theme, isDark, setTheme }), [theme, isDark, setTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, isDark, setTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

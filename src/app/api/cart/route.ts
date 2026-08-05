@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       // 2. Insert new cart items if any
       if (items.length > 0) {
         await tx.cartItem.createMany({
-          data: items.map((item: any) => ({
+          data: items.map((item: { id: string, productId: string, quantity: number, price?: number }) => ({
             userId: token.id as string,
             productId: item.id,
             quantity: item.quantity,

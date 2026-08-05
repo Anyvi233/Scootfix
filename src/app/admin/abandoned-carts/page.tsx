@@ -5,6 +5,7 @@ import { FiShoppingCart, FiMail, FiRefreshCw, FiClock, FiChevronDown, FiChevronU
 import { toast } from "react-hot-toast";
 import { formatPrice } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
+import { apiFetch } from "@/lib/api-client";
 
 export default function AdminAbandonedCartsPage() {
   const [carts, setCarts] = useState<any[]>([]);
@@ -36,7 +37,7 @@ export default function AdminAbandonedCartsPage() {
   const sendReminder = async (userId: string) => {
     setSendingId(userId);
     try {
-      const res = await fetch("/api/admin/abandoned-carts", {
+      const res = await apiFetch("/api/admin/abandoned-carts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
@@ -109,7 +110,7 @@ export default function AdminAbandonedCartsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {carts.map((cart) => {
+          {carts.map((cart: any) => {
             const isExpanded = expandedId === cart.userId;
             const isSending = sendingId === cart.userId;
             const subtotal = cart.items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);

@@ -111,8 +111,8 @@ export async function POST(req: NextRequest) {
     lastSentCache.set(user.email, Date.now());
 
     return NextResponse.json({ success: true, message: `Email sent to ${user.email}` });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/admin/abandoned-carts error:", error);
-    return NextResponse.json({ error: error.message || "Failed to send email" }, { status: 500 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : "An error occurred") || "Failed to send email" }, { status: 500 });
   }
 }

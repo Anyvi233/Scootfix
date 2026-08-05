@@ -33,8 +33,8 @@ export const authOptions: AuthOptions = {
         const password = credentials.password.slice(0, 72);
 
         const ip =
-          (req as any)?.headers?.["x-forwarded-for"] ??
-          (req as any)?.headers?.["x-real-ip"] ??
+          (req as { headers?: Record<string, string> })?.headers?.["x-forwarded-for"] ??
+          (req as { headers?: Record<string, string> })?.headers?.["x-real-ip"] ??
           undefined;
 
         const user = await prisma.user.findUnique({ where: { email } });
@@ -47,6 +47,10 @@ export const authOptions: AuthOptions = {
         if (!user || !user.password || !isCorrectPassword) {
           await logFailedLogin(email, ip);
           throw new Error("Invalid email or password");
+        }
+
+        if (!user.emailVerified) {
+          throw new Error("Please verify your email address to log in.");
         }
 
         await logSuccessfulLogin(user.id, ip);

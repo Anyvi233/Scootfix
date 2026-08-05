@@ -30,8 +30,10 @@ async function main() {
       email: "admin@example.com",
       password: adminPasswordHash,
       role: "ADMIN",
+      emailVerified: new Date(),
     },
   });
+  console.log("Admin created:", admin.email);
 
   const customer = await prisma.user.create({
     data: {
@@ -39,6 +41,7 @@ async function main() {
       email: "test@example.com",
       password: customerPasswordHash,
       role: "CUSTOMER",
+      emailVerified: new Date(),
     },
   });
 

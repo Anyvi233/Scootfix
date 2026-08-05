@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 
 export interface WishlistItem {
@@ -37,12 +37,12 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const saveWishlist = (newWishlist: WishlistItem[]) => {
+  const saveWishlist = useCallback((newWishlist: WishlistItem[]) => {
     setWishlist(newWishlist);
     localStorage.setItem("scootfix_wishlist", JSON.stringify(newWishlist));
-  };
+  }, []);
 
-  const toggleWishlist = (item: WishlistItem) => {
+  const toggleWishlist = useCallback((item: WishlistItem) => {
     const exists = wishlist.some((i) => i.id === item.id);
     let newWishlist = [...wishlist];
 
@@ -55,28 +55,28 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     }
 
     saveWishlist(newWishlist);
-  };
+  }, [wishlist, saveWishlist]);
 
-  const isInWishlist = (id: string) => {
+  const isInWishlist = useCallback((id: string) => {
     return wishlist.some((item) => item.id === id);
-  };
+  }, [wishlist]);
 
-  const clearWishlist = () => {
+  const clearWishlist = useCallback(() => {
     saveWishlist([]);
-  };
+  }, [saveWishlist]);
 
   const wishlistCount = wishlist.length;
 
+  const value = React.useMemo(() => ({
+    wishlist,
+    toggleWishlist,
+    isInWishlist,
+    clearWishlist,
+    wishlistCount,
+  }), [wishlist, toggleWishlist, isInWishlist, clearWishlist, wishlistCount]);
+
   return (
-    <WishlistContext.Provider
-      value={{
-        wishlist,
-        toggleWishlist,
-        isInWishlist,
-        clearWishlist,
-        wishlistCount,
-      }}
-    >
+    <WishlistContext.Provider value={value}>
       {children}
     </WishlistContext.Provider>
   );

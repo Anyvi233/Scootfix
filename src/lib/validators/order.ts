@@ -23,5 +23,5 @@ export const createOrderSchema = z.object({
 });
 
 export const updateOrderStatusSchema = z.object({
-  status: z.enum(ORDER_STATUSES as any),
+  status: z.enum(ORDER_STATUSES as unknown as [string, ...string[]]),
 });

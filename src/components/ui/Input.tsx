@@ -1,6 +1,6 @@
 "use client";
 
-import React, { forwardRef, useState, useId } from "react";
+import React, { forwardRef, useState, useId, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 
@@ -11,12 +11,30 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, error, leftIcon, id, ...props }, ref) => {
+  ({ className, type, label, error, leftIcon, id, onFocus, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
     const generatedId = useId();
     const inputId = id || generatedId;
     const isPassword = type === "password";
     const inputType = isPassword ? (showPassword ? "text" : "password") : type;
+
+    /**
+     * iOS Safari keyboard fix:
+     * When the virtual keyboard opens, the layout viewport shrinks but the
+     * visual viewport stays the same height. The focused input can slide under
+     * the keyboard. scrollIntoView with a small delay (after the keyboard
+     * animation, ~300ms) reliably brings the field back into view.
+     */
+    const handleFocus = useCallback(
+      (e: React.FocusEvent<HTMLInputElement>) => {
+        onFocus?.(e);
+        const el = e.currentTarget;
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 320);
+      },
+      [onFocus]
+    );
 
     return (
       <div className="w-full relative flex flex-col gap-1.5">
@@ -35,8 +53,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             type={inputType}
             ref={ref}
+            onFocus={handleFocus}
             className={cn(
-              "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-primary file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 transition-colors",
+              // h-12 (48px) — better mobile touch target, text-base prevents iOS auto-zoom on focus
+              "flex h-12 w-full rounded-md border border-border bg-surface px-3 py-2 text-base text-text-primary file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 transition-colors",
               leftIcon && "pl-10",
               isPassword && "pr-10",
               error && "border-danger focus-visible:ring-danger",

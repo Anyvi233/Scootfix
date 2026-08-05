@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { OrderService } from "@/services/order.service";
+import prisma from "@/lib/prisma";
+import { sendOrderConfirmationEmail, sendAdminOrderAlert } from "@/lib/mailer";
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { shippingAddress, billingAddress, paymentMethod, paymentId, notes, couponCode } = body;
+    const { shippingAddress, billingAddress, paymentMethod, paymentId, notes, couponCode, deliveryOption } = body;
 
     if (!shippingAddress || !paymentMethod) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -42,13 +44,45 @@ export async function POST(req: NextRequest) {
       paymentMethod,
       paymentId,
       notes,
-      couponCode
+      couponCode,
+      deliveryOption
     );
-
-    return NextResponse.json(order, { status: 201 });
-  } catch (error: any) {
+// ---- Send transactional emails (non‑blocking) ----
+const user = await prisma.user.findUnique({
+  where: { id: token.id as string },
+  select: { name: true, email: true },
+});
+const orderWithItems = await prisma.order.findUnique({
+  where: { id: order.id },
+  include: { items: true },
+});
+if (user?.email && orderWithItems) {
+  const emailData = {
+    orderNumber: order.orderNumber,
+    customerName: user.name || shippingAddress.name || "Customer",
+    customerEmail: user.email,
+    items: orderWithItems.items.map((i) => ({
+      name: i.name,
+      quantity: i.quantity,
+      price: Number(i.price),
+    })),
+    subtotal: Number(order.subtotal),
+    tax: Number(order.tax ?? 0),
+    shipping: Number(order.shippingCost ?? 0),
+    total: Number(order.total),
+    paymentMethod,
+    shippingAddress,
+    createdAt: order.createdAt.toISOString(),
+  };
+  await Promise.allSettled([
+    sendOrderConfirmationEmail(emailData),
+    sendAdminOrderAlert(emailData),
+  ]);
+}
+return NextResponse.json(order, { status: 201 });
+  } catch (error: unknown) {
     console.error("POST /api/orders error:", error);
-    return NextResponse.json({ error: error.message || "Failed to place order" }, { status: 400 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : "An error occurred") || "Failed to place order" }, { status: 400 });
   }
 }
 
@@ -68,8 +102,8 @@ export async function PATCH(req: NextRequest) {
 
     const cancelledOrder = await OrderService.cancelOrder(token.id as string, orderId);
     return NextResponse.json(cancelledOrder);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/orders error:", error);
-    return NextResponse.json({ error: error.message || "Failed to cancel order" }, { status: 400 });
+    return NextResponse.json({ error: (error instanceof Error ? error.message : "An error occurred") || "Failed to cancel order" }, { status: 400 });
   }
 }

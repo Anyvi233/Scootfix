@@ -1,11 +1,11 @@
 import { ReturnRepository } from "@/repositories/return.repository";
 
 export class ReturnService {
-  static async createReturn(userId: string, data: any) {
+  static async createReturn(userId: string, data: { orderId: string, resolution?: string, notes?: string, description?: string, reason?: string, items: any[] }) {
     return ReturnRepository.create({
       user: { connect: { id: userId } },
       order: { connect: { id: data.orderId } },
-      reason: data.reason,
+      reason: data.reason || "OTHER",
       description: data.description,
       items: {
         create: data.items.map((item: any) => ({

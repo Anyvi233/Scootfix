@@ -103,6 +103,11 @@
   body {
     @apply bg-background text-text-primary font-body antialiased;
     scroll-behavior: smooth;
+    /* Prevent font size inflation on orientation change (iOS Safari) */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Remove blue tap highlight on mobile */
+    -webkit-tap-highlight-color: transparent;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-display font-semibold tracking-tight;
@@ -143,6 +148,15 @@
   }
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-info;
+  }
+
+  /* Safe-area utility classes (used via className, never inline styles) */
+  /* These are pure CSS so they don't cause SSR hydration mismatches */
+  .header-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-area-bottom {
+    bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)));
   }
 }
 

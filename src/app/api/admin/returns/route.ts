@@ -76,7 +76,7 @@ export async function PATCH(req: NextRequest) {
                 productId,
                 change: returnItem.quantity,
                 reason: `RETURN:${returnReq.id.slice(0, 8)}`,
-                userId: user.id,
+                userId: user?.id || "",
               }
             });
           }
@@ -93,9 +93,9 @@ export async function PATCH(req: NextRequest) {
       }
 
       return NextResponse.json({ success: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("PATCH /api/admin/returns error:", err);
-      return NextResponse.json({ error: err.message || "Failed to update return." }, { status: 500 });
+      return NextResponse.json({ error: (err instanceof Error ? err.message : "An error occurred") || "Failed to update return." }, { status: 500 });
     }
   });
 }

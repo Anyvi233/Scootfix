@@ -41,36 +41,73 @@ export interface AuditEvent {
   userAgent?: string;
 }
 
+class AuditBatchProcessor {
+  private queue: AuditEvent[] = [];
+  private isProcessing = false;
+  private readonly MAX_BATCH_SIZE = 100;
+  private readonly FLUSH_INTERVAL_MS = 5000;
+
+  constructor() {
+    if (typeof window === "undefined") {
+      setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
+    }
+  }
+
+  public push(event: AuditEvent) {
+    this.queue.push({
+      ...event,
+      timestamp: new Date().toISOString(),
+    } as AuditEvent & { timestamp: string });
+
+    if (this.queue.length >= this.MAX_BATCH_SIZE) {
+      this.flush();
+    }
+  }
+
+  private async flush() {
+    if (this.isProcessing || this.queue.length === 0) return;
+    this.isProcessing = true;
+
+    const batch = this.queue.splice(0, this.MAX_BATCH_SIZE);
+    const endpoint = process.env.EXTERNAL_LOG_ENDPOINT;
+    const apiKey = process.env.EXTERNAL_LOG_API_KEY;
+
+    if (endpoint) {
+      try {
+        await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          },
+          body: JSON.stringify({ logs: batch }),
+        });
+      } catch (err) {
+        console.error("[AUDIT] Failed to push logs to external provider. Re-queueing.");
+        // Re-queue at the front
+        this.queue.unshift(...batch);
+      }
+    } else {
+      // Fallback: Dump to console if no external provider is configured
+      batch.forEach(log => {
+        const prefix = `[AUDIT][${log.action}]`;
+        console.info(prefix, JSON.stringify(log));
+      });
+    }
+
+    this.isProcessing = false;
+  }
+}
+
+const processor = new AuditBatchProcessor();
+
 /**
  * Log a security/audit event.
- * Writes to the AuditLog DB table and the server console.
+ * Writes to the in-memory batch processor queue.
  * Never throws – logging must not break the main request flow.
  */
 export async function auditLog(event: AuditEvent): Promise<void> {
-  // Console log (always available, even without DB)
-  const prefix = `[AUDIT][${event.action}]`;
-  console.info(prefix, JSON.stringify({
-    ...event,
-    timestamp: new Date().toISOString(),
-  }));
-
-  try {
-    await (prisma as any).auditLog.create({
-      data: {
-        action: event.action,
-        userId: event.userId ?? null,
-        targetId: event.targetId ?? null,
-        targetType: event.targetType ?? null,
-        description: event.description ?? null,
-        metadata: event.metadata ? JSON.stringify(event.metadata) : null,
-        ipAddress: event.ipAddress ?? null,
-        userAgent: event.userAgent ?? null,
-      },
-    });
-  } catch {
-    // If DB write fails (e.g. table not yet migrated) we still have the console log.
-    console.error("[AUDIT] Failed to write audit log to database.");
-  }
+  processor.push(event);
 }
 
 /** Convenience helper for failed login attempts */

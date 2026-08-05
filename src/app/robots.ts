@@ -1,15 +1,14 @@
-import { MetadataRoute } from "next";
+import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
-  const BASE_URL = process.env.NEXTAUTH_URL || "https://scootfix.in";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
   return {
-    rules: [
-      {
-        userAgent: "*",
-        allow: ["/", "/shop", "/products/", "/categories", "/brands", "/vehicle-compatibility"],
-        disallow: ["/admin/", "/api/", "/checkout", "/profile", "/orders", "/settings"],
-      },
-    ],
-    sitemap: `${BASE_URL}/sitemap.xml`,
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: ['/admin/', '/api/', '/checkout', '/profile'],
+    },
+    sitemap: `${baseUrl}/sitemap.xml`,
   };
 }

@@ -5,6 +5,7 @@ import { FiRefreshCw, FiPackage, FiCheck, FiX, FiClock, FiChevronDown, FiChevron
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
+import { apiFetch } from "@/lib/api-client";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   REQUESTED:  { label: "Requested",  color: "bg-info/10 text-info border-info/20" },
@@ -14,7 +15,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 export default function AdminReturnsPage() {
-  const [returns, setReturns] = useState<any[]>([]);
+  const [returns, setReturns] = useState<import("@/types/models").ReturnWithItems[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export default function AdminReturnsPage() {
         setReturns(data);
         // Pre-fill resolutions with defaults
         const map: Record<string, string> = {};
-        data.forEach((r: any) => { map[r.id] = r.resolution || ""; });
+        data.forEach((r: import("@/types/models").ReturnWithItems) => { map[r.id] = r.resolution || ""; });
         setResolutionMap(map);
       }
     } catch (e) {
@@ -44,7 +45,7 @@ export default function AdminReturnsPage() {
   const handleAction = async (returnId: string, status: "APPROVED" | "REJECTED" | "PROCESSING") => {
     setUpdatingId(returnId);
     try {
-      const res = await fetch("/api/admin/returns", {
+      const res = await apiFetch("/api/admin/returns", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ returnId, status, resolution: resolutionMap[returnId] || undefined }),
@@ -61,8 +62,8 @@ export default function AdminReturnsPage() {
       }
 
       setReturns(prev => prev.map(r => r.id === returnId ? { ...r, status, resolution: resolutionMap[returnId] } : r));
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update return.");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "An error occurred") || "Failed to update return.");
     } finally {
       setUpdatingId(null);
     }
@@ -208,7 +209,7 @@ export default function AdminReturnsPage() {
                           <div>
                             <h3 className="text-[10px] uppercase font-bold tracking-widest text-text-muted mb-2">Items to Return</h3>
                             <div className="space-y-2">
-                              {ret.items?.map((item: any) => (
+                              {ret.items?.map((item) => (
                                 <div key={item.id} className="flex items-center justify-between text-sm p-3 bg-background-elevated border border-border rounded-xl">
                                   <div>
                                     <p className="font-medium text-text-primary">{item.orderItem?.name}</p>

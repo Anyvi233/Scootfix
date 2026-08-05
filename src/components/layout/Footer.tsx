@@ -71,7 +71,7 @@ export function Footer() {
             <p className="text-text-secondary text-sm mb-4">
               Subscribe to get special offers, free giveaways, and once-in-a-lifetime deals.
             </p>
-            <form className="flex gap-2">
+            <form className="flex flex-col sm:flex-row gap-2">
               <input 
                 type="email" 
                 placeholder="Enter your email" 
@@ -80,7 +80,7 @@ export function Footer() {
               />
               <button 
                 type="submit" 
-                className="bg-primary hover:bg-primary-hover text-white h-10 px-4 rounded-md text-sm font-medium transition-colors"
+                className="bg-primary hover:bg-primary-hover text-white h-10 px-4 rounded-md text-sm font-medium transition-colors shrink-0"
               >
                 Join
               </button>

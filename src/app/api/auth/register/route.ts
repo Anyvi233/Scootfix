@@ -14,6 +14,9 @@ import bcrypt from "bcryptjs";
 import { registerSchema } from "@/lib/security";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 
+import crypto from "crypto";
+import { sendVerificationEmail } from "@/lib/email";
+
 // 5 attempts per 15 minutes per IP
 const registerLimiter = new RateLimiterMemory({
   points: 5,
@@ -87,8 +90,23 @@ export async function POST(req: NextRequest) {
     select: { id: true, name: true, email: true },
   });
 
+  // ── Generate Verification Token ────────────────────────────────────────────
+  const token = crypto.randomBytes(32).toString("hex");
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  await prisma.verificationToken.create({
+    data: {
+      email: email,
+      token,
+      expires,
+      type: "EMAIL_VERIFICATION",
+    },
+  });
+
+  await sendVerificationEmail(email, token);
+
   return NextResponse.json(
-    { message: "Account created successfully.", user: { id: user.id, name: user.name, email: user.email } },
+    { message: "Account created successfully. Please check your email to verify your account.", user: { id: user.id, name: user.name, email: user.email } },
     { status: 201 }
   );
 }
