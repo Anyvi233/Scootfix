@@ -71,8 +71,8 @@ export default function OrderSuccessPage() {
           <FiCheckCircle size={36} />
         </div>
         <h1 className="text-3xl font-display font-bold text-text-primary">Order Confirmed!</h1>
-        <p className="text-text-secondary text-sm">
-          A receipt and delivery updates have been sent to <strong>{invoice.shipping.email}</strong>.
+        <p className="text-text-secondary text-sm max-w-lg mx-auto">
+          A receipt has been sent to <strong>{invoice.shipping.email}</strong>. Once your order has been dispatched, you will receive a separate email containing your live tracking link.
         </p>
       </div>
 

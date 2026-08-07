@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { FiStar } from "react-icons/fi";
 import { toast } from "react-hot-toast";
@@ -182,7 +183,7 @@ export function ReviewsSection({ productId, initialCount = 0, initialRating = 0 
                       aria-hidden="true"
                     >
                       {r.user?.image ? (
-                        <img src={r.user.image} alt="" className="w-full h-full object-cover" />
+                        <Image src={r.user.image} alt="" width={40} height={40} className="w-full h-full object-cover" />
                       ) : (
                         (r.user?.name || "C").charAt(0).toUpperCase()
                       )}

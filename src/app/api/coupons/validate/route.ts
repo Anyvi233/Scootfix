@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { code, orderAmount = 0 } = body;
+    const { code, orderAmount = 0, userId } = body;
 
     if (!code || typeof code !== "string") {
       return NextResponse.json({ error: "Coupon code is required." }, { status: 400 });
@@ -30,6 +30,14 @@ export async function POST(req: NextRequest) {
 
     if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
       return NextResponse.json({ error: "This coupon has reached its usage limit." }, { status: 400 });
+    }
+
+    // Check if this user has already used the coupon
+    const priorUsage = await prisma.couponUsage.findFirst({
+      where: { couponId: coupon.id, userId },
+    });
+    if (priorUsage) {
+      return NextResponse.json({ error: "Coupon already used by this user." }, { status: 400 });
     }
 
     if (orderAmount < coupon.minOrderAmount) {

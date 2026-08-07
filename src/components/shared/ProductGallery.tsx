@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import Image from "next/image";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 import { cn } from "@/lib/utils";
 
 export interface ProductGalleryProps {
@@ -33,14 +35,12 @@ export function ProductGallery({ images }: ProductGalleryProps) {
         onMouseLeave={() => setIsZoomed(false)}
         onMouseMove={handleMouseMove}
       >
-        <div 
-          className="absolute inset-0 bg-cover bg-no-repeat transition-transform duration-200"
-          style={{ 
-            backgroundImage: `url(${images[activeIndex].url})`,
-            backgroundPosition: isZoomed ? `${mousePos.x}% ${mousePos.y}%` : 'center',
-            backgroundSize: isZoomed ? '200%' : 'contain',
-          }}
-          aria-label={images[activeIndex].alt || "Product image"}
+        <Image
+          src={cloudinaryUrl(images[activeIndex].url)}
+          alt={images[activeIndex].alt || "Product image"}
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="object-cover transition-transform duration-200"
         />
       </div>
 
@@ -58,9 +58,12 @@ export function ProductGallery({ images }: ProductGalleryProps) {
                   : "border-border hover:border-text-muted"
               )}
             >
-              <div 
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${image.url})` }}
+              <Image
+                src={cloudinaryUrl(image.url)}
+                alt={image.alt || "Thumbnail"}
+                fill
+                sizes="80px"
+                className="object-cover"
               />
             </button>
           ))}

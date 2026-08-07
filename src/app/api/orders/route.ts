@@ -3,6 +3,9 @@ import { getToken } from "next-auth/jwt";
 import { OrderService } from "@/services/order.service";
 import prisma from "@/lib/prisma";
 import { sendOrderConfirmationEmail, sendAdminOrderAlert } from "@/lib/mailer";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
+
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -47,6 +50,8 @@ export async function POST(req: NextRequest) {
       couponCode,
       deliveryOption
     );
+  // ---- Send WhatsApp admin notification ----
+  await sendWhatsAppMessage(`New order placed: #${order.orderNumber}`);
 // ---- Send transactional emails (non‑blocking) ----
 const user = await prisma.user.findUnique({
   where: { id: token.id as string },

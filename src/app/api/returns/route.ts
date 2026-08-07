@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import prisma from "@/lib/prisma";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,7 +39,8 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json(returnReq, { status: 201 });
+    await sendWhatsAppMessage(`Return request submitted for Order #${order.orderNumber} (Reason: ${reason})`);
+return NextResponse.json(returnReq, { status: 201 });
   } catch (err: unknown) {
     console.error("POST /api/returns error:", err);
     return NextResponse.json({ error: (err instanceof Error ? err.message : "An error occurred") || "Failed to create return request." }, { status: 500 });

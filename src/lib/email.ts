@@ -7,4 +7,5 @@ export {
   sendPasswordResetEmail,
   sendAbandonedCartEmail,
   sendShippingEmail,
+  sendAdminOrderAlert,
 } from "./mailer";

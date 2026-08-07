@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   FiHeart, FiShare2, FiShoppingCart, FiCheck,
@@ -334,7 +335,7 @@ export function ProductDetailsClient({ product }: Props) {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden">
                         {r.user?.image ? (
-                          <img src={r.user.image} alt={r.user.name || "Customer"} className="w-full h-full object-cover" />
+                          <Image src={r.user.image} alt={r.user.name || "Customer"} width={40} height={40} className="w-full h-full object-cover" />
                         ) : (
                           (r.user?.name || "C").charAt(0).toUpperCase()
                         )}

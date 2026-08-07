@@ -2,7 +2,8 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/Card";
-
+import Image from "next/image";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 export interface ReviewCardProps {
   name: string;
   avatar?: string;
@@ -17,9 +18,15 @@ export function ReviewCard({ name, avatar, rating, date, comment, verified = tru
     <Card className="h-full bg-surface border-border p-6 shadow-sm">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden relative">
             {avatar ? (
-              <img src={avatar} alt={name} className="w-full h-full object-cover" />
+              <Image
+                src={cloudinaryUrl(avatar)}
+                alt={name}
+                fill
+                sizes="40px"
+                className="object-cover"
+              />
             ) : (
               name.charAt(0).toUpperCase()
             )}

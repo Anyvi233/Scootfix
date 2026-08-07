@@ -31,6 +31,7 @@ model User {
   inventoryLogs InventoryLog[]
   verificationTokens VerificationToken[]
   auditLogs     AuditLog[]
+  usages        CouponUsage[]
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -424,10 +425,21 @@ model Coupon {
   expiresAt       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  usages        CouponUsage[]
 
   @@index([code])
   @@index([isActive])               // filter active coupons only
   @@index([expiresAt])              // expiry cleanup jobs
+}
+
+model CouponUsage {
+  id        String   @id @default(cuid())
+  couponId  String
+  userId    String
+  createdAt DateTime @default(now())
+  coupon    Coupon   @relation(fields: [couponId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  @@unique([couponId, userId])
 }
 
 model VerificationToken {

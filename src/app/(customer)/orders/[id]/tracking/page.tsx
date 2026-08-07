@@ -90,6 +90,7 @@ export default async function TrackingPage({ params }: { params: { id: string } 
                 )}
               </div>
             )}
+                <p className="text-xs text-text-muted mt-2">Tracking details will be emailed to you once the order is dispatched.</p>
           </div>
 
           {/* Items Summary */}

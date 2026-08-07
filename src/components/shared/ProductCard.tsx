@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -122,9 +123,11 @@ export function ProductCard({
       {/* Image */}
       <Link href={`/products/${slug}`} className="relative aspect-[4/3] w-full bg-background overflow-hidden block">
         {/* Placeholder image rendering since we don't have actual next/image setup with domains yet */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-          style={{ backgroundImage: `url(${image})` }}
+        <Image
+          src={cloudinaryUrl(image)}
+          alt={name}
+          fill sizes="(max-width: 640px) 100vw, 50vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
       </Link>
 

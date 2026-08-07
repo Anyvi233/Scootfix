@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   FiStar, FiTrash2, FiRefreshCw, FiCheckCircle, FiXCircle,
   FiSearch, FiFilter, FiMessageSquare, FiAlertTriangle
@@ -220,7 +221,7 @@ export default function AdminReviewsPage() {
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0 overflow-hidden">
                         {review.user?.image ? (
-                          <img src={review.user.image} alt="" className="w-full h-full object-cover" />
+                          <Image src={review.user.image} alt="" width={32} height={32} className="w-full h-full object-cover" />
                         ) : (
                           (review.user?.name || "?").charAt(0).toUpperCase()
                         )}

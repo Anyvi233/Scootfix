@@ -210,7 +210,7 @@ export default function InventoryDashboard() {
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 relative bg-background rounded-md overflow-hidden shrink-0 border border-border">
                             {item.images?.[0]?.url ? (
-                              <Image src={item.images[0].url} alt={item.name} fill className="object-cover" />
+                              <Image src={item.images[0].url} alt={item.name} fill sizes="40px" className="object-cover" />
                             ) : (
                               <div className="h-full w-full flex items-center justify-center text-xs text-text-muted">No IMG</div>
                             )}

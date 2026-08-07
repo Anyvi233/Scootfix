@@ -53,11 +53,16 @@ export class OrderService {
             isFreeShipping = true;
           }
 
-          // Increment coupon usage count
-          await prisma.coupon.update({
-            where: { id: coupon.id },
-            data: { usedCount: { increment: 1 } },
-          });
+          // Record coupon usage for the user and increment usage count atomically
+          await prisma.$transaction([
+            prisma.couponUsage.create({
+              data: { couponId: coupon.id, userId },
+            }),
+            prisma.coupon.update({
+              where: { id: coupon.id },
+              data: { usedCount: { increment: 1 } },
+            }),
+          ]);
         }
       }
     }

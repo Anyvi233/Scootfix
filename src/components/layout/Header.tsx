@@ -126,7 +126,7 @@ export function Header() {
               </Link>
             )}
 
-            <Link href={mounted ? userLink : "/login"} className="hidden sm:block p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Account" title="My Profile">
+            <Link href={mounted ? userLink : "/login"} className="hidden sm:block p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Account" suppressHydrationWarning>
               <FiIcons.FiUser size={20} />
             </Link>
 

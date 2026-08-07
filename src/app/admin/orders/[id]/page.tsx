@@ -191,13 +191,24 @@ export default function AdminOrderDetailPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-text-muted mb-2">
-                Tracking Number
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-bold uppercase tracking-widest text-text-muted">
+                  Tracking Number (DTDC AWB)
+                </label>
+                {trackingNumber && (
+                  <button
+                    type="button"
+                    onClick={() => setTrackingUrl(`https://www.17track.net/en/track?nums=${trackingNumber}`)}
+                    className="text-[11px] text-primary hover:underline font-semibold"
+                  >
+                    + Auto DTDC Link
+                  </button>
+                )}
+              </div>
               <Input
                 value={trackingNumber}
                 onChange={(e) => setTrackingNumber(e.target.value)}
-                placeholder="e.g. AW123456789IN"
+                placeholder="e.g. D12345678 or Z12345678 (DTDC)"
               />
             </div>
 
@@ -208,7 +219,7 @@ export default function AdminOrderDetailPage() {
               <Input
                 value={trackingUrl}
                 onChange={(e) => setTrackingUrl(e.target.value)}
-                placeholder="https://..."
+                placeholder="https://www.dtdc.in/ or https://www.17track.net/..."
               />
             </div>
 
