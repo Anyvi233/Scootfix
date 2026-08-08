@@ -88,6 +88,49 @@ export class OrderService {
     const tax = gstNumber ? Math.round((discountedSubtotal + shipping) * (gstRate / 100)) : 0;
     const total = discountedSubtotal + tax + shipping;
 
+    // 3.5. Razorpay payment verification server-side to prevent tampering/fake orders
+    if (paymentMethod !== "cod") {
+      if (!paymentId || !paymentId.startsWith("pay_")) {
+        throw new Error("A valid Razorpay payment ID is required for online payments.");
+      }
+
+      // Check for duplicate payment ID to prevent double order submissions
+      const existingOrder = await prisma.order.findFirst({
+        where: { paymentId },
+      });
+      if (existingOrder) {
+        throw new Error("This payment has already been associated with another order.");
+      }
+
+      // Fetch payment details directly from Razorpay API
+      try {
+        const Razorpay = require("razorpay");
+        const razorpay = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID || "",
+          key_secret: process.env.RAZORPAY_KEY_SECRET || "",
+        });
+
+        const payment = await razorpay.payments.fetch(paymentId);
+        if (!payment) {
+          throw new Error("Payment record not found on Razorpay.");
+        }
+
+        if (payment.status !== "captured" && payment.status !== "authorized") {
+          throw new Error(`Razorpay payment status is ${payment.status}, expected captured or authorized.`);
+        }
+
+        // Verify payment amount matches computed order total (within 1 INR margin for rounding)
+        const expectedPaise = Math.round(total * 100);
+        const actualPaise = payment.amount;
+        if (Math.abs(expectedPaise - actualPaise) > 100) {
+          throw new Error(`Payment amount mismatch. Expected: INR ${total}, Paid: INR ${actualPaise / 100}`);
+        }
+      } catch (err: any) {
+        console.error("[Razorpay Verify Error] Failed to verify payment:", err);
+        throw new Error(err.message || "Razorpay payment verification failed.");
+      }
+    }
+
     // 4. Delegate transaction to OrderRepository
     const order = await OrderRepository.createOrderTransactional(
       userId,
