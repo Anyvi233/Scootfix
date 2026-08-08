@@ -20,7 +20,8 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useVehicle } from "@/context/VehicleContext";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
-import { FiStar } from "react-icons/fi";
+import { FiStar, FiX } from "react-icons/fi";
+import { COMPANY_DETAILS } from "@/lib/constants";
 
 interface Props {
   product: any;
@@ -31,7 +32,7 @@ export function ProductDetailsClient({ product }: Props) {
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  const { selectedVehicle, isCompatible } = useVehicle();
+  const { selectedVehicle, isCompatible, selectVehicle, clearVehicle } = useVehicle();
   const { data: session } = useSession();
   
   // Reviews state
@@ -52,6 +53,39 @@ export function ProductDetailsClient({ product }: Props) {
   const [formComment, setFormComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [upvotedReviews, setUpvotedReviews] = useState<string[]>([]);
+
+  // Compatibility Modal State
+  const [isCompatModalOpen, setIsCompatModalOpen] = useState(false);
+  const [vehicleModels, setVehicleModels] = useState<any[]>([]);
+  const [modalSelectedBrand, setModalSelectedBrand] = useState("");
+  const [modalSelectedModel, setModalSelectedModel] = useState("");
+  const [modalSelectedYear, setModalSelectedYear] = useState("");
+
+  useEffect(() => {
+    if (isCompatModalOpen && vehicleModels.length === 0) {
+      fetch("/api/vehicles")
+        .then((r) => r.json())
+        .then(setVehicleModels)
+        .catch(console.error);
+    }
+  }, [isCompatModalOpen, vehicleModels.length]);
+
+  const handleCheckFit = () => {
+    if (!modalSelectedBrand || !modalSelectedModel || !modalSelectedYear) {
+      toast.error("Please select Brand, Model, and Year.");
+      return;
+    }
+    selectVehicle({
+      brand: modalSelectedBrand,
+      model: modalSelectedModel,
+      variant: "Standard",
+      year: modalSelectedYear,
+    });
+    setIsCompatModalOpen(false);
+  };
+
+  const currentBrandData = vehicleModels.find((b) => b.name === modalSelectedBrand);
+  const currentModelData = currentBrandData?.vehicles?.find((v: any) => v.name === modalSelectedModel);
 
   // Fetch reviews function
   const fetchReviews = async (pageNumber = 1) => {
@@ -269,7 +303,7 @@ export function ProductDetailsClient({ product }: Props) {
                       key={num}
                       type="button"
                       onClick={() => setFormRating(num)}
-                      className="p-1 text-warning hover:scale-110 transition-transform focus:outline-none"
+                      className="p-3 min-h-[48px] min-w-[48px] flex items-center justify-center text-warning hover:scale-110 transition-transform focus:outline-none"
                     >
                       <svg 
                         className={`w-8 h-8 fill-current ${num <= formRating ? "text-warning" : "text-border fill-border"}`} 
@@ -391,7 +425,7 @@ export function ProductDetailsClient({ product }: Props) {
                   <button
                     onClick={() => setReviewsPage(prev => Math.max(1, prev - 1))}
                     disabled={reviewsPage === 1}
-                    className="px-3 py-1 bg-surface border border-border rounded text-xs disabled:opacity-50"
+                    className="px-4 py-3 min-h-[48px] bg-surface border border-border rounded text-xs disabled:opacity-50"
                   >
                     Prev
                   </button>
@@ -401,7 +435,7 @@ export function ProductDetailsClient({ product }: Props) {
                   <button
                     onClick={() => setReviewsPage(prev => Math.min(reviewsTotalPages, prev + 1))}
                     disabled={reviewsPage === reviewsTotalPages}
-                    className="px-3 py-1 bg-surface border border-border rounded text-xs disabled:opacity-50"
+                    className="px-4 py-3 min-h-[48px] bg-surface border border-border rounded text-xs disabled:opacity-50"
                   >
                     Next
                   </button>
@@ -436,7 +470,7 @@ export function ProductDetailsClient({ product }: Props) {
             </button>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-display font-bold text-text-primary leading-tight mb-4">
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-text-primary leading-tight mb-4 break-words">
             {product.name}
           </h1>
 
@@ -465,6 +499,11 @@ export function ProductDetailsClient({ product }: Props) {
             <Badge variant={product.stock > 0 ? "success" : "danger"} pulse={product.stock > 0}>
               {product.stock > 0 ? `In Stock (${product.stock} left)` : "Out of Stock"}
             </Badge>
+            {product.stock > 0 && product.stock <= 5 && (
+              <Badge variant="warning">
+                ⚡ Hurry! Only {product.stock} left
+              </Badge>
+            )}
           </div>
 
           {/* Vehicle Compatibility Banner */}
@@ -475,29 +514,49 @@ export function ProductDetailsClient({ product }: Props) {
                 return (
                   <div 
                     className={cn(
-                      "p-4 rounded-xl border text-sm flex items-start gap-3",
+                      "p-4 rounded-xl border text-sm flex items-start justify-between gap-3",
                       compatible 
                         ? "bg-success/5 border-success/20 text-success" 
                         : "bg-danger/5 border-danger/20 text-danger"
                     )}
                   >
-                    <span className="text-lg leading-none mt-0.5">{compatible ? "✓" : "⚠"}</span>
-                    <div>
-                      <p className="font-semibold">{compatible ? "Verified Fit" : "Compatibility Warning"}</p>
-                      <p className="text-xs opacity-90 mt-0.5">{reason}</p>
+                    <div className="flex gap-3 items-start">
+                      <span className="text-lg leading-none mt-0.5">{compatible ? "✓" : "⚠"}</span>
+                      <div>
+                        <p className="font-semibold">{compatible ? "Verified Fit" : "Compatibility Warning"}</p>
+                        <p className="text-xs opacity-90 mt-0.5">{reason}</p>
+                      </div>
                     </div>
+                    <button 
+                      onClick={clearVehicle}
+                      className="text-xs underline opacity-70 hover:opacity-100"
+                    >
+                      Change Vehicle
+                    </button>
                   </div>
                 );
               })()
             ) : (
-              <div className="p-4 rounded-xl border border-border bg-surface-elevated text-text-secondary text-sm flex items-start gap-3">
-                <span className="text-lg leading-none mt-0.5">ℹ</span>
-                <div>
-                  <p className="font-semibold">Check Compatibility</p>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    Select your scooter model in the shop filters sidebar to verify fit.
-                  </p>
+              <div className="p-4 rounded-xl border border-border bg-surface-elevated flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <FiShield className="text-primary" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-text-primary text-sm">Will this fit your scooter?</p>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Verify compatibility before ordering.
+                    </p>
+                  </div>
                 </div>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setIsCompatModalOpen(true)}
+                  className="shrink-0"
+                >
+                  Check Fit
+                </Button>
               </div>
             )}
           </div>
@@ -518,17 +577,40 @@ export function ProductDetailsClient({ product }: Props) {
             )}
           </div>
 
-          <div className="bg-surface-elevated rounded-xl p-4 border border-border mb-8">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center gap-2 text-text-primary">
-                <FiTruck className="text-primary" size={18} />
-                <span>Free Shipping</span>
-              </div>
-              <div className="flex items-center gap-2 text-text-primary">
-                <FiShield className="text-primary" size={18} />
-                <span>Warranty Included</span>
-              </div>
-            </div>
+          <div className="bg-surface-elevated rounded-xl p-5 border border-border mb-8 shadow-sm">
+            <h3 className="font-display font-semibold text-text-primary mb-3 pb-2 border-b border-border text-base">
+              Product Information
+            </h3>
+            <ul className="text-sm space-y-2.5 text-text-secondary">
+              <li className="flex gap-2 items-start">
+                <span className="font-medium text-text-primary min-w-[130px]">Condition:</span>
+                <span>Brand New</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <span className="font-medium text-text-primary min-w-[130px]">Warranty:</span>
+                <span>{product.warranty || "No Warranty"}</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <span className="font-medium text-text-primary min-w-[130px]">Return Policy:</span>
+                <span>{product.returnable !== false ? "7-Day Replacement" : "Non-returnable"}</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <span className="font-medium text-text-primary min-w-[130px]">Est. Delivery:</span>
+                <span>{product.estimatedDeliveryDays ? `${product.estimatedDeliveryDays}-${product.estimatedDeliveryDays + 2} business days` : "3-5 business days"}</span>
+              </li>
+              {product.boxContents && (
+                <li className="flex gap-2 items-start">
+                  <span className="font-medium text-text-primary min-w-[130px]">Box Contents:</span>
+                  <span className="leading-snug">
+                    {Array.isArray(product.boxContents) 
+                      ? product.boxContents.join(", ") 
+                      : typeof product.boxContents === "string" 
+                        ? product.boxContents 
+                        : JSON.stringify(product.boxContents)}
+                  </span>
+                </li>
+              )}
+            </ul>
           </div>
 
           {/* Actions */}
@@ -582,6 +664,19 @@ export function ProductDetailsClient({ product }: Props) {
                 <FiHeart size={22} className={isWishlisted ? "fill-current" : ""} />
               </Button>
             </div>
+            
+            {/* WhatsApp Fallback */}
+            <div className="pt-2">
+              <a
+                href={`https://wa.me/${COMPANY_DETAILS.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Hi ScootFix, I need help checking if the [${product.name} - SKU: ${product.sku}] is compatible with my scooter.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full h-12 bg-[#25D366]/10 text-[#128C7E] hover:bg-[#25D366]/20 font-medium rounded-xl transition-colors border border-[#25D366]/20"
+              >
+                <FaWhatsapp size={18} />
+                <span>Not sure which part you need? WhatsApp us</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -590,6 +685,88 @@ export function ProductDetailsClient({ product }: Props) {
       <div className="mb-20">
         <Tabs items={tabItems} className="bg-surface rounded-2xl border border-border shadow-sm p-2 sm:p-6" />
       </div>
+
+      {/* Compatibility Modal */}
+      {isCompatModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-surface border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold font-display text-text-primary">Check Compatibility</h3>
+              <button 
+                onClick={() => setIsCompatModalOpen(false)}
+                className="text-text-muted hover:text-text-primary p-1 rounded-full hover:bg-surface-elevated transition-colors"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">Brand</label>
+                <select 
+                  className="w-full h-11 px-3 bg-surface-elevated border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  value={modalSelectedBrand}
+                  onChange={(e) => {
+                    setModalSelectedBrand(e.target.value);
+                    setModalSelectedModel("");
+                    setModalSelectedYear("");
+                  }}
+                >
+                  <option value="">Select Brand</option>
+                  {vehicleModels.map(b => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">Model</label>
+                <select 
+                  className="w-full h-11 px-3 bg-surface-elevated border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  value={modalSelectedModel}
+                  onChange={(e) => {
+                    setModalSelectedModel(e.target.value);
+                    setModalSelectedYear("");
+                  }}
+                  disabled={!modalSelectedBrand}
+                >
+                  <option value="">Select Model</option>
+                  {currentBrandData?.vehicles?.map((v: any) => (
+                    <option key={v.id} value={v.name}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">Year</label>
+                <select 
+                  className="w-full h-11 px-3 bg-surface-elevated border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  value={modalSelectedYear}
+                  onChange={(e) => setModalSelectedYear(e.target.value)}
+                  disabled={!modalSelectedModel}
+                >
+                  <option value="">Select Year</option>
+                  {currentModelData && (() => {
+                    const start = currentModelData.yearStart;
+                    const end = currentModelData.yearEnd || new Date().getFullYear();
+                    const years = [];
+                    for(let y = end; y >= start; y--) years.push(y);
+                    return years.map(y => <option key={y} value={y}>{y}</option>);
+                  })()}
+                </select>
+              </div>
+
+              <Button 
+                className="w-full h-11 mt-4 shadow-glow" 
+                onClick={handleCheckFit}
+                disabled={!modalSelectedBrand || !modalSelectedModel || !modalSelectedYear}
+              >
+                Verify Fit
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

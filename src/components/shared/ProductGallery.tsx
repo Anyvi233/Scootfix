@@ -39,6 +39,7 @@ export function ProductGallery({ images }: ProductGalleryProps) {
           src={cloudinaryUrl(images[activeIndex].url)}
           alt={images[activeIndex].alt || "Product image"}
           fill
+          priority={activeIndex === 0}
           sizes="(max-width: 768px) 100vw, 50vw"
           className="object-cover transition-transform duration-200"
         />

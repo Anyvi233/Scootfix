@@ -1,6 +1,14 @@
 export const APP_NAME = "ScootFix";
 export const APP_DESCRIPTION = "Premium EV Spare Parts E-commerce Platform";
 
+export const COMPANY_DETAILS = {
+  legalName: "ScootFix Technologies Pvt Ltd",
+  brandName: "ScootFix Spares",
+  address: "123 Tech Park, HSR Layout, Bengaluru, Karnataka - 560102",
+  email: "support@scootfix.in",
+  phone: "+91 98765 43210",
+};
+
 export const ITEMS_PER_PAGE = 12;
 export const MAX_UPLOAD_SIZE = 5 * 1024 * 1024; // 5MB
 

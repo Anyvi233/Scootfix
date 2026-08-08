@@ -41,15 +41,19 @@ model User {
 }
 
 enum OrderStatus {
-  PENDING
+  PENDING          // Order created but not yet paid
+  PAYMENT_PENDING  // Payment step pending
   PAID
-  CONFIRMED
+  CONFIRMED        // Order confirmed after payment
   PROCESSING
+  PACKED           // Items packed and ready for shipment
   SHIPPED
+  OUT_FOR_DELIVERY // Shipment is out for delivery to customer
   DELIVERED
   CANCELLED
-  FAILED
+  REFUND_PENDING   // Refund request received, pending processing
   REFUNDED
+  FAILED
 }
 
 model Account {
@@ -152,6 +156,10 @@ model Product {
   specifications  Json?
   isFeatured      Boolean  @default(false)
   isActive        Boolean  @default(true)
+  warranty        String?   // e.g., "2 years manufacturer warranty"
+  boxContents     Json?     // array of strings describing items in the box
+  estimatedDeliveryDays Int? // estimated delivery time in days
+  returnable      Boolean? @default(true) // true if product can be returned
   
   category        Category @relation(fields: [categoryId], references: [id])
   brand           Brand    @relation(fields: [brandId], references: [id])
@@ -255,6 +263,7 @@ model Order {
   
   user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   items           OrderItem[]
+  refunds         Refund[]
   returns         Return[]
   
   createdAt       DateTime    @default(now())
@@ -467,4 +476,20 @@ model VerificationToken {
   user      User     @relation(fields: [email], references: [email], onDelete: Cascade)
 
   @@index([email])
+}
+
+model Refund {
+  id           String   @id @default(cuid())
+  orderId      String
+  amount       Float
+  status       String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  gatewayId    String?  // e.g., Razorpay refund ID
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
 }

@@ -58,6 +58,50 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { items = [] } = body;
 
+    const adjustments: { id: string, originalQuantity: number, newQuantity: number, reason: string }[] = [];
+    const validItems: { id: string, quantity: number }[] = [];
+
+    if (items.length > 0) {
+      const productIds = items.map((item: { id: string }) => item.id);
+      
+      const dbProducts = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, stock: true, isActive: true, name: true }
+      });
+
+      const productMap = new Map(dbProducts.map(p => [p.id, p]));
+
+      for (const item of items) {
+        const product = productMap.get(item.id);
+
+        if (!product || !product.isActive || product.stock <= 0) {
+          adjustments.push({
+            id: item.id,
+            originalQuantity: item.quantity,
+            newQuantity: 0,
+            reason: !product ? "Product not found" : (!product.isActive ? "Product inactive" : "Out of stock"),
+          });
+          continue;
+        }
+
+        const quantityToSave = Math.min(item.quantity, product.stock);
+
+        if (quantityToSave < item.quantity) {
+          adjustments.push({
+            id: item.id,
+            originalQuantity: item.quantity,
+            newQuantity: quantityToSave,
+            reason: "Quantity clamped to available stock",
+          });
+        }
+
+        validItems.push({
+          id: item.id,
+          quantity: quantityToSave,
+        });
+      }
+    }
+
     // Run in a transaction to replace database cart items
     await prisma.$transaction(async (tx) => {
       // 1. Clear existing database cart items
@@ -66,9 +110,9 @@ export async function POST(req: NextRequest) {
       });
 
       // 2. Insert new cart items if any
-      if (items.length > 0) {
+      if (validItems.length > 0) {
         await tx.cartItem.createMany({
-          data: items.map((item: { id: string, productId: string, quantity: number, price?: number }) => ({
+          data: validItems.map(item => ({
             userId: token.id as string,
             productId: item.id,
             quantity: item.quantity,
@@ -77,7 +121,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, adjustments });
   } catch (error) {
     console.error("POST /api/cart error:", error);
     return NextResponse.json({ error: "Failed to sync cart" }, { status: 500 });

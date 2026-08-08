@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import Razorpay from "razorpay";
-
+import { CartRepository } from "@/repositories/cart.repository";
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      amount,
       customerName,
       customerEmail,
       customerPhone,
@@ -26,9 +25,22 @@ export async function POST(req: NextRequest) {
       callbackUrl,
     } = await req.json();
 
-    if (!amount || typeof amount !== "number" || amount <= 0) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    // Compute authoritative amount from the user's cart (subtotal + shipping + GST)
+    const userId = token?.id as string || "dev_mock_user_id";
+    const cartItems = await CartRepository.findManyByUserId(userId);
+    if (cartItems.length === 0) {
+      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
+
+    let subtotal = 0;
+    for (const item of cartItems) {
+      subtotal += item.product.price * item.quantity;
+    }
+    const gstNumber = process.env.NEXT_PUBLIC_GST_NUMBER || "";
+    const gstRate = Number(process.env.NEXT_PUBLIC_GST_RATE || 18);
+    const shipping = subtotal > 5000 ? 0 : 250;
+    const tax = gstNumber ? Math.round((subtotal + shipping) * (gstRate / 100)) : 0;
+    const total = subtotal + shipping + tax;
 
     // Razorpay disallows contact numbers with all recurring digits (e.g. 9999999999)
     // We clean and check if it's repeating, empty, or not 10 digits
@@ -46,7 +58,7 @@ export async function POST(req: NextRequest) {
     // Create a Razorpay Payment Link
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const paymentLink = await (razorpay as any).paymentLink.create({
-      amount: Math.round(amount * 100), // paise
+      amount: Math.round(total * 100), // paise
       currency: "INR",
       accept_partial: false,
       description: description || "ScootFix Order Payment",

@@ -33,25 +33,74 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
       const order = await prisma.order.findUnique({
         where: { id },
-        include: { user: true }
+        include: { user: true, items: true }
       });
 
       if (!order) {
         return NextResponse.json({ error: "Order not found" }, { status: 404 });
       }
 
-      const updatedOrder = await prisma.order.update({
-        where: { id },
-        data: {
-          status: status || undefined,
-          trackingNumber: trackingNumber !== undefined ? trackingNumber : undefined,
-          trackingUrl: trackingUrl !== undefined ? trackingUrl : undefined,
-        },
-        include: {
-          user: { select: { name: true, email: true } },
-          items: true,
-        },
-      });
+      const isCancelling = (status === "CANCELLED" || status === "REFUNDED") &&
+                           (order.status !== "CANCELLED" && order.status !== "REFUNDED");
+                           
+      let updatedOrder;
+
+      if (isCancelling) {
+        const operations: any[] = [];
+        
+        operations.push(
+          prisma.order.update({
+            where: { id },
+            data: {
+              status: status || undefined,
+              trackingNumber: trackingNumber !== undefined ? trackingNumber : undefined,
+              trackingUrl: trackingUrl !== undefined ? trackingUrl : undefined,
+            },
+            include: {
+              user: { select: { name: true, email: true } },
+              items: true,
+            },
+          })
+        );
+        
+        const reasonPrefix = status === "CANCELLED" ? "CANCEL_ORDER:" : "REFUND_ORDER:";
+        
+        for (const item of order.items) {
+          if (item.productId) {
+            operations.push(
+              prisma.product.update({
+                where: { id: item.productId },
+                data: { stock: { increment: item.quantity } }
+              })
+            );
+            operations.push(
+              prisma.inventoryLog.create({
+                data: {
+                  productId: item.productId,
+                  change: item.quantity,
+                  reason: `${reasonPrefix}${order.orderNumber}`
+                }
+              })
+            );
+          }
+        }
+        
+        const results = await prisma.$transaction(operations);
+        updatedOrder = results[0];
+      } else {
+        updatedOrder = await prisma.order.update({
+          where: { id },
+          data: {
+            status: status || undefined,
+            trackingNumber: trackingNumber !== undefined ? trackingNumber : undefined,
+            trackingUrl: trackingUrl !== undefined ? trackingUrl : undefined,
+          },
+          include: {
+            user: { select: { name: true, email: true } },
+            items: true,
+          },
+        });
+      }
 
       // If status is SHIPPED, and it either transitioned to SHIPPED or added tracking info
       const isTransitioningToShipped = status === "SHIPPED" && order.status !== "SHIPPED";

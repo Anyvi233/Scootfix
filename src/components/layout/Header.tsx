@@ -130,19 +130,19 @@ export function Header() {
               <FiIcons.FiUser size={20} />
             </Link>
 
-            <Link href="/wishlist" className="relative p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Wishlist">
+            <Link href="/wishlist" className="relative p-3 min-h-[48px] min-w-[48px] flex items-center justify-center text-text-secondary hover:text-primary transition-colors" aria-label="Wishlist">
               <FiIcons.FiHeart size={20} />
               {mounted && wishlistCount > 0 && (
-                <span className="absolute top-0 right-0 h-4 w-4 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full">
+                <span className="absolute top-2 right-2 h-4 w-4 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full">
                   {wishlistCount}
                 </span>
               )}
             </Link>
             
-            <Link href="/cart" className="relative p-2 text-text-secondary hover:text-primary transition-colors" aria-label="Cart">
+            <Link href="/cart" className="relative p-3 min-h-[48px] min-w-[48px] flex items-center justify-center text-text-secondary hover:text-primary transition-colors" aria-label="Cart">
               <FiIcons.FiShoppingBag size={20} />
               {mounted && cartCount > 0 && (
-                <span className="absolute top-0 right-0 h-4 w-4 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full">
+                <span className="absolute top-2 right-2 h-4 w-4 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full">
                   {cartCount}
                 </span>
               )}
@@ -150,7 +150,7 @@ export function Header() {
 
             {/* Mobile Menu Toggle */}
             <button
-              className="md:hidden p-2 text-text-primary"
+              className="md:hidden p-3 min-h-[48px] min-w-[48px] flex items-center justify-center text-text-primary"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <FiIcons.FiX size={24} /> : <FiIcons.FiMenu size={24} />}
@@ -166,7 +166,7 @@ export function Header() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-full left-0 right-0 bg-surface border-b border-border shadow-lg p-4 md:hidden"
+            className="absolute top-full left-0 right-0 bg-surface border-b border-border shadow-lg p-4 md:hidden max-h-[calc(100vh-80px)] overflow-y-auto"
           >
             <nav className="flex flex-col space-y-4">
               {NAV_LINKS.map((link) => (

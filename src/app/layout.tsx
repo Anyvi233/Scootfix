@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 import { SkipNav } from "@/components/ui/SkipNav";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
+import Footer from "@/components/Footer";
 
 // display:swap prevents FOIT (flash of invisible text)
 const inter = Inter({
@@ -88,8 +89,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Razorpay Checkout script */}
-        <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
       </head>
       <body
         className={`${inter.variable} ${outfit.variable} antialiased min-h-screen flex flex-col`}
@@ -100,6 +99,7 @@ export default function RootLayout({
              {children}
           </div>
         </Providers>
+        <Footer />
       </body>
     </html>
   );

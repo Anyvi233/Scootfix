@@ -6,6 +6,7 @@ import { FiCheckCircle, FiArrowRight, FiFileText, FiPrinter } from "react-icons/
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
+import { COMPANY_DETAILS } from "@/lib/constants";
 
 interface InvoiceData {
   orderId: string;
@@ -84,10 +85,10 @@ export default function OrderSuccessPage() {
         {/* Invoice Header */}
         <div className="flex justify-between border-b border-border pb-6 flex-wrap gap-4">
           <div>
-            <h2 className="text-xl font-display font-bold text-text-primary print:text-black">ScootFix Spares</h2>
-            <p className="text-xs text-text-secondary mt-1">123 Tech Park, HSR Layout, Bengaluru - 560102</p>
+            <h2 className="text-xl font-display font-bold text-text-primary print:text-black">{COMPANY_DETAILS.legalName}</h2>
+            <p className="text-xs text-text-secondary mt-1 max-w-xs">{COMPANY_DETAILS.address}</p>
             {process.env.NEXT_PUBLIC_GST_NUMBER && (
-              <p className="text-xs text-text-secondary">GSTIN: {process.env.NEXT_PUBLIC_GST_NUMBER}</p>
+              <p className="text-xs text-text-secondary mt-1 font-semibold">GSTIN: {process.env.NEXT_PUBLIC_GST_NUMBER}</p>
             )}
           </div>
           <div className="text-right">
@@ -176,7 +177,7 @@ export default function OrderSuccessPage() {
 
         {/* Invoice Footer */}
         <div className="text-center text-[10px] text-text-muted pt-6 border-t border-border">
-          This is a computer-generated transaction invoice and does not require a physical signature. For queries, contact support@scootfix.com.
+          This is a computer-generated transaction invoice and does not require a physical signature. For queries, contact {COMPANY_DETAILS.email} or call {COMPANY_DETAILS.phone}.
         </div>
       </div>
 

@@ -15,6 +15,40 @@ export class OrderService {
     deliveryOption?: string,
     razorpayOrderId?: string
   ) {
+    // --- COMMERCIAL FRAUD & ABUSE PREVENTION ---
+    
+    // 1. Address Integrity
+    if (shippingAddress) {
+      const zip = shippingAddress.zipCode || shippingAddress.zip || "";
+      if (!/^\d{6}$/.test(String(zip).trim())) {
+        throw new Error("Invalid ZIP Code. Please enter a valid 6-digit PIN code.");
+      }
+      if (!shippingAddress.street || String(shippingAddress.street).trim().length < 5) {
+        throw new Error("Please enter a complete and valid street address.");
+      }
+    }
+
+    // 2. COD Abuse & Serial Returner Penalties
+    if (paymentMethod === "cod") {
+      const returnCount = await prisma.return.count({
+        where: { userId }
+      });
+      if (returnCount >= 3) {
+        throw new Error("Cash on Delivery is disabled for this account due to a history of multiple returns. Please use an online payment method.");
+      }
+
+      const activeCodOrders = await prisma.order.count({
+        where: {
+          userId,
+          paymentMethod: "cod",
+          status: { in: ["PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"] }
+        }
+      });
+      if (activeCodOrders >= 2) {
+        throw new Error("You have reached the maximum limit of active Cash on Delivery orders. Please wait for delivery or pay online.");
+      }
+    }
+
     // 1. Get cart items using CartRepository
     const cartItems = await CartRepository.findManyByUserId(userId);
 
@@ -25,10 +59,18 @@ export class OrderService {
     // 2. Calculate totals and check stock
     let subtotal = 0;
     for (const item of cartItems) {
+      // 3. Reseller & Quantity Limits
+      if (item.quantity > 5) {
+        throw new Error(`Quantity limit exceeded: You cannot order more than 5 units of ${item.product.name}.`);
+      }
       if (item.product.stock < item.quantity) {
         throw new Error(`Insufficient stock for ${item.product.name}`);
       }
       subtotal += item.product.price * item.quantity;
+    }
+
+    if (subtotal > 100000) {
+      throw new Error("Order total exceeds the maximum allowed retail limit of ₹1,00,000.");
     }
 
     // 3. Process coupon validation if provided
@@ -40,31 +82,60 @@ export class OrderService {
         where: { code: couponCode.trim().toUpperCase() },
       });
 
-      if (coupon && coupon.isActive) {
-        const notExpired = !coupon.expiresAt || new Date() <= new Date(coupon.expiresAt);
-        const withinUses = coupon.maxUses === null || coupon.usedCount < coupon.maxUses;
-        const metMinAmount = subtotal >= coupon.minOrderAmount;
+      if (!coupon || !coupon.isActive) {
+        throw new Error("Invalid or inactive coupon code.");
+      }
 
-        if (notExpired && withinUses && metMinAmount) {
-          if (coupon.discountType === "PERCENT") {
-            discountAmount = Math.round(subtotal * (coupon.discountValue / 100));
-          } else if (coupon.discountType === "FLAT") {
-            discountAmount = Math.min(coupon.discountValue, subtotal);
-          } else if (coupon.discountType === "FREESHIP") {
-            isFreeShipping = true;
+      if (coupon.expiresAt && new Date() > new Date(coupon.expiresAt)) {
+        throw new Error("This coupon has expired.");
+      }
+
+      if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
+        throw new Error("This coupon has reached its maximum usage limit.");
+      }
+
+      if (subtotal < coupon.minOrderAmount) {
+        throw new Error(`Order amount must be at least ₹${coupon.minOrderAmount} to use this coupon.`);
+      }
+
+      // Check if user already used this specific coupon
+      const existingUsage = await prisma.couponUsage.findUnique({
+        where: {
+          couponId_userId: {
+            couponId: coupon.id,
+            userId: userId,
           }
-
-          // Record coupon usage for the user and increment usage count atomically
-          await prisma.$transaction([
-            prisma.couponUsage.create({
-              data: { couponId: coupon.id, userId },
-            }),
-            prisma.coupon.update({
-              where: { id: coupon.id },
-              data: { usedCount: { increment: 1 } },
-            }),
-          ]);
         }
+      });
+
+      if (existingUsage) {
+        throw new Error("This coupon has already been used by your account.");
+      }
+
+      if (coupon.discountType === "PERCENT") {
+        discountAmount = Math.round(subtotal * (coupon.discountValue / 100));
+      } else if (coupon.discountType === "FLAT") {
+        discountAmount = Math.min(coupon.discountValue, subtotal);
+      } else if (coupon.discountType === "FREESHIP") {
+        isFreeShipping = true;
+      }
+
+      // Record coupon usage for the user and increment usage count atomically
+      try {
+        await prisma.$transaction([
+          prisma.couponUsage.create({
+            data: { couponId: coupon.id, userId },
+          }),
+          prisma.coupon.update({
+            where: { id: coupon.id },
+            data: { usedCount: { increment: 1 } },
+          }),
+        ]);
+      } catch (err: any) {
+        if (err.code === "P2002") {
+          throw new Error("This coupon has already been used by your account.");
+        }
+        throw err;
       }
     }
 

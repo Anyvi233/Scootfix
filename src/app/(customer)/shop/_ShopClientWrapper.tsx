@@ -29,12 +29,13 @@ function ShopSkeleton() {
   );
 }
 
-// ssr:false lives here in a Client Component — this is required by Next.js
-const ShopPageInner = dynamic(() => import("./_ShopPageInner"), {
-  ssr: false,
-  loading: ShopSkeleton,
-});
+import { Suspense } from "react";
+import ShopPageInner from "./_ShopPageInner";
 
 export default function ShopClientWrapper() {
-  return <ShopPageInner />;
+  return (
+    <Suspense fallback={<ShopSkeleton />}>
+      <ShopPageInner />
+    </Suspense>
+  );
 }

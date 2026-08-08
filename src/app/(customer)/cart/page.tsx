@@ -226,10 +226,10 @@ export default function CartPage() {
                     <div className="flex flex-wrap items-center justify-between sm:justify-end w-full sm:w-auto gap-4 border-t sm:border-t-0 pt-3 sm:pt-0">
                       
                       {/* Quantity Selector */}
-                      <div className="flex items-center border border-border rounded-lg bg-background h-9">
+                      <div className="flex items-center border border-border rounded-lg bg-background h-12">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="px-2 text-text-muted hover:text-text-primary transition-colors h-full"
+                          className="px-4 text-text-muted hover:text-text-primary transition-colors h-full"
                           aria-label="Decrease quantity"
                         >
                           <FiMinus size={14} />
@@ -237,7 +237,7 @@ export default function CartPage() {
                         <span className="w-8 text-center text-xs font-semibold text-text-primary">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="px-2 text-text-muted hover:text-text-primary transition-colors h-full"
+                          className="px-4 text-text-muted hover:text-text-primary transition-colors h-full"
                           aria-label="Increase quantity"
                         >
                           <FiPlus size={14} />
@@ -350,10 +350,10 @@ export default function CartPage() {
                       value={couponInput}
                       onChange={(e) => setCouponInput(e.target.value)}
                       placeholder="e.g. SCOOT15, FLAT200"
-                      className="flex-grow h-10 px-3 bg-background border border-border rounded-md text-xs text-text-primary uppercase focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="flex-grow h-12 px-4 bg-background border border-border rounded-md text-sm text-text-primary uppercase focus:outline-none focus:ring-1 focus:ring-primary"
                       disabled={isCouponLoading}
                     />
-                    <Button type="submit" variant="outline" size="sm" className="h-10 min-w-[70px]" disabled={isCouponLoading}>
+                    <Button type="submit" variant="outline" size="sm" className="h-12 min-w-[80px]" disabled={isCouponLoading}>
                       {isCouponLoading ? "..." : "Apply"}
                     </Button>
                   </div>

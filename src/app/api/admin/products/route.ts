@@ -79,18 +79,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Product with this SKU or Name already exists" }, { status: 400 });
     }
 
-    const product = await prisma.product.create({
-      data: {
-        name,
-        sku,
-        slug,
-        description: name,
-        price: parseFloat(price),
-        stock: parseInt(stock) || 0,
-        categoryId: category.id,
-        brandId: brand.id,
-        purchasePrice: parseFloat(price) * 0.6 // simulated
+    const product = await prisma.$transaction(async (tx) => {
+      const newProduct = await tx.product.create({
+        data: {
+          name,
+          sku,
+          slug,
+          description: name,
+          price: parseFloat(price),
+          stock: parseInt(stock) || 0,
+          categoryId: category.id,
+          brandId: brand.id,
+          purchasePrice: parseFloat(price) * 0.6 // simulated
+        }
+      });
+
+      if (newProduct.stock > 0) {
+        await tx.inventoryLog.create({
+          data: {
+            productId: newProduct.id,
+            change: newProduct.stock,
+            reason: 'INITIAL_STOCK',
+          },
+        });
       }
+
+      return newProduct;
     });
 
     return NextResponse.json(product, { status: 201 });

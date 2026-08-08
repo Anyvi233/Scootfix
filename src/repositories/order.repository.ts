@@ -84,7 +84,7 @@ export class OrderRepository {
         });
 
         return order;
-      });
+      }, { timeout: 15000 });
     } catch (error) {
       console.error("OrderRepository.createOrderTransactional error:", error);
       throw error; // Propagate the original error (e.g. out of stock or custom message)

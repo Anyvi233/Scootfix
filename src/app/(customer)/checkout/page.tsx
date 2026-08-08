@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 import {
   FiCreditCard,
   FiLock,
@@ -80,7 +81,7 @@ export default function CheckoutPage() {
   const [isCouponLoading, setIsCouponLoading] = useState(false);
 
   useEffect(() => {
-    const saved = sessionStorage.getItem("scootfix_applied_coupon");
+    const saved = localStorage.getItem("scootfix_applied_coupon");
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -154,7 +155,7 @@ export default function CheckoutPage() {
         setDiscountType(data.discountType);
         setDiscountValue(data.discountValue);
         setIsCouponFreeShip(data.freeShipping);
-        sessionStorage.setItem("scootfix_applied_coupon", JSON.stringify(data));
+        localStorage.setItem("scootfix_applied_coupon", JSON.stringify(data));
         toast.success(`✓ Coupon ${data.code} applied!`);
         setCouponInput("");
       }
@@ -167,7 +168,7 @@ export default function CheckoutPage() {
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon(""); setDiscountType(""); setDiscountValue(0); setIsCouponFreeShip(false);
-    sessionStorage.removeItem("scootfix_applied_coupon");
+    localStorage.removeItem("scootfix_applied_coupon");
     toast.success("Coupon removed.");
   };
 
@@ -220,7 +221,7 @@ export default function CheckoutPage() {
       };
       sessionStorage.setItem("scootfix_latest_invoice", JSON.stringify(invoiceData));
       clearCart();
-      sessionStorage.removeItem("scootfix_applied_coupon");
+      localStorage.removeItem("scootfix_applied_coupon");
       toast.success("Order Placed Successfully!");
       router.push(`/order-success?id=${order.orderNumber}`);
     } catch (e: unknown) {
@@ -322,7 +323,7 @@ export default function CheckoutPage() {
               subtotal: cartSubtotal, discountAmount, shippingCost, codFee, tax: estimatedTax, total: totalCost,
             };
             sessionStorage.setItem("scootfix_latest_invoice", JSON.stringify(invoiceData));
-            sessionStorage.removeItem("scootfix_applied_coupon");
+            localStorage.removeItem("scootfix_applied_coupon");
 
             clearCart();
             toast.success("Payment verified and order placed!");
@@ -379,8 +380,10 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 md:px-6 py-8 md:py-12">
-      <h1 className="text-3xl font-display font-bold text-text-primary mb-8">Secure Checkout</h1>
+    <React.Fragment>
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <div className="container mx-auto px-4 md:px-6 py-8 md:py-12">
+        <h1 className="text-3xl font-display font-bold text-text-primary mb-8">Secure Checkout</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6" ref={formRef}>
@@ -477,6 +480,7 @@ export default function CheckoutPage() {
                 <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(1)}>Back to Address</Button>
                 <Button type="submit" className="flex-1 h-12" rightIcon={<FiArrowRight />}>Continue to Payment</Button>
               </div>
+              <div className="h-24 sm:hidden" />
             </form>
           )}
 
@@ -542,6 +546,7 @@ export default function CheckoutPage() {
                   {paymentMethod === "cod" ? "Place Order" : `Pay ${formatPrice(totalCost)}`}
                 </Button>
               </div>
+              <div className="h-24 sm:hidden" />
             </form>
           )}
         </div>
@@ -654,5 +659,6 @@ export default function CheckoutPage() {
         )}
       </div>
     </div>
+    </React.Fragment>
   );
 }
