@@ -3,7 +3,18 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FiCreditCard, FiLock, FiTruck, FiArrowRight, FiMapPin, FiInfo, FiShoppingBag, FiTag, FiTrash2 } from "react-icons/fi";
+import {
+  FiCreditCard,
+  FiLock,
+  FiTruck,
+  FiArrowRight,
+  FiMapPin,
+  FiInfo,
+  FiShoppingBag,
+  FiTag,
+  FiTrash2,
+  FiSmartphone,
+} from "react-icons/fi";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -18,9 +29,7 @@ const DELIVERY_OPTIONS = [
 ];
 
 const PAYMENT_METHODS = [
-  { id: "upi", label: "UPI / QR Code", description: "Scan QR code or enter UPI ID" },
-  { id: "card", label: "Credit / Debit Card", description: "Visa, Mastercard, RuPay, Maestro" },
-  { id: "netbanking", label: "Net Banking", description: "All major Indian banks supported" },
+  { id: "online", label: "Pay Online", description: "UPI, Cards, Net Banking via Razorpay" },
   { id: "cod", label: "Cash on Delivery (COD)", description: "Pay when package arrives (+₹50 fee)" },
 ];
 
@@ -40,32 +49,21 @@ export default function CheckoutPage() {
   });
 
   const [deliveryOption, setDeliveryOption] = useState("standard");
-  const [paymentMethod, setPaymentMethod] = useState("upi");
-  const [cardDetails, setCardDetails] = useState({
-    number: "",
-    expiry: "",
-    cvc: "",
-  });
-  const [upiId, setUpiId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("online");
   const [isLoading, setIsLoading] = useState(false);
-  // Tracks whether the mobile virtual keyboard is open (iOS Safari visualViewport)
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const formRef = React.useRef<HTMLDivElement>(null);
 
-  // iOS Safari visual viewport resize = keyboard open/close
   React.useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
     const onResize = () => {
-      // If the visual viewport height is significantly less than the window height,
-      // the keyboard is open.
       setKeyboardOpen(vv.height < window.innerHeight * 0.75);
     };
     vv.addEventListener("resize", onResize);
     return () => vv.removeEventListener("resize", onResize);
   }, []);
 
-  // Scroll form back to top when moving to a new step
   const goToStep = (n: number) => {
     setStep(n);
     setTimeout(() => {
@@ -81,7 +79,6 @@ export default function CheckoutPage() {
   const [isCouponFreeShip, setIsCouponFreeShip] = useState(false);
   const [isCouponLoading, setIsCouponLoading] = useState(false);
 
-  // Load coupon from sessionStorage on mount
   useEffect(() => {
     const saved = sessionStorage.getItem("scootfix_applied_coupon");
     if (saved) {
@@ -97,50 +94,39 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  // Address check
-  const isAddressValid = () => {
-    return (
-      shippingAddress.name.trim() !== "" &&
-      shippingAddress.phone.trim() !== "" &&
-      shippingAddress.email.trim() !== "" &&
-      shippingAddress.street.trim() !== "" &&
-      shippingAddress.city.trim() !== "" &&
-      shippingAddress.state.trim() !== "" &&
-      shippingAddress.zipCode.trim() !== ""
-    );
-  };
-
   // Calculations
   const discountAmount = (() => {
     if (!appliedCoupon) return 0;
-    if (discountType === "PERCENT") {
-      return Math.round(cartSubtotal * (discountValue / 100));
-    }
-    if (discountType === "FLAT") {
-      return Math.min(discountValue, cartSubtotal);
-    }
+    if (discountType === "PERCENT") return Math.round(cartSubtotal * (discountValue / 100));
+    if (discountType === "FLAT") return Math.min(discountValue, cartSubtotal);
     return 0;
   })();
 
   const discountedSubtotal = Math.max(0, cartSubtotal - discountAmount);
-
   const selectedDelivery = DELIVERY_OPTIONS.find((o) => o.id === deliveryOption);
   const rawShipping = selectedDelivery ? selectedDelivery.price : 0;
-  const shippingCost = (discountedSubtotal > 5000 || isCouponFreeShip) && deliveryOption === "standard" ? 0 : rawShipping;
-  // GST — only active when a real GSTIN is configured in .env
+  const shippingCost =
+    (discountedSubtotal > 5000 || isCouponFreeShip) && deliveryOption === "standard" ? 0 : rawShipping;
   const gstNumber = process.env.NEXT_PUBLIC_GST_NUMBER || "";
   const gstRate = Number(process.env.NEXT_PUBLIC_GST_RATE || 18);
-
   const codFee = paymentMethod === "cod" ? 50 : 0;
-  const estimatedTax = gstNumber ? Math.round((discountedSubtotal + shippingCost + codFee) * (gstRate / 100)) : 0;
+  const estimatedTax = gstNumber
+    ? Math.round((discountedSubtotal + shippingCost + codFee) * (gstRate / 100))
+    : 0;
   const totalCost = discountedSubtotal + shippingCost + codFee + estimatedTax;
+
+  const isAddressValid = () =>
+    shippingAddress.name.trim() !== "" &&
+    shippingAddress.phone.trim() !== "" &&
+    shippingAddress.email.trim() !== "" &&
+    shippingAddress.street.trim() !== "" &&
+    shippingAddress.city.trim() !== "" &&
+    shippingAddress.state.trim() !== "" &&
+    shippingAddress.zipCode.trim() !== "";
 
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAddressValid()) {
-      toast.error("Please fill in all shipping fields.");
-      return;
-    }
+    if (!isAddressValid()) { toast.error("Please fill in all shipping fields."); return; }
     goToStep(2);
   };
 
@@ -169,95 +155,211 @@ export default function CheckoutPage() {
         setDiscountValue(data.discountValue);
         setIsCouponFreeShip(data.freeShipping);
         sessionStorage.setItem("scootfix_applied_coupon", JSON.stringify(data));
-        toast.success(`✓ Coupon ${data.code} applied successfully!`);
+        toast.success(`✓ Coupon ${data.code} applied!`);
         setCouponInput("");
       }
-    } catch (err) {
-      toast.error("Failed to validate coupon. Please try again.");
+    } catch {
+      toast.error("Failed to validate coupon.");
     } finally {
       setIsCouponLoading(false);
     }
   };
 
   const handleRemoveCoupon = () => {
-    setAppliedCoupon("");
-    setDiscountType("");
-    setDiscountValue(0);
-    setIsCouponFreeShip(false);
+    setAppliedCoupon(""); setDiscountType(""); setDiscountValue(0); setIsCouponFreeShip(false);
     sessionStorage.removeItem("scootfix_applied_coupon");
     toast.success("Coupon removed.");
   };
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (paymentMethod === "card" && (!cardDetails.number || !cardDetails.expiry || !cardDetails.cvc)) {
-      toast.error("Please fill in card details");
-      return;
-    }
-    if (paymentMethod === "upi" && !upiId.includes("@")) {
-      toast.error("Please enter a valid UPI ID (e.g. user@okaxis)");
-      return;
-    }
+  /** Save order context to sessionStorage so the confirm page can use it */
+  const savePendingOrderContext = (refId: string) => {
+    const context = {
+      refId,
+      shippingAddress,
+      paymentMethod,
+      notes: `Delivery: ${selectedDelivery?.label}`,
+      couponCode: appliedCoupon || null,
+      deliveryOption,
+      cartSnapshot: cart.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+      totals: { subtotal: cartSubtotal, discountAmount, shippingCost, codFee, tax: estimatedTax, total: totalCost },
+    };
+    sessionStorage.setItem("scootfix_pending_order", JSON.stringify(context));
+  };
 
+  /** COD — no Razorpay needed, create order directly */
+  const handleCODOrder = async () => {
     setIsLoading(true);
     try {
       const response = await apiFetch("/api/orders", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          shippingAddress: {
-            name: shippingAddress.name,
-            phone: shippingAddress.phone,
-            email: shippingAddress.email,
-            street: shippingAddress.street,
-            city: shippingAddress.city,
-            state: shippingAddress.state,
-            zipCode: shippingAddress.zipCode,
-          },
+          shippingAddress,
           billingAddress: null,
-          paymentMethod,
-          paymentId: paymentMethod === "upi" ? upiId : paymentMethod === "card" ? "CARD-SIMULATED" : "COD-SIMULATED",
+          paymentMethod: "cod",
+          paymentId: "COD",
           notes: `Delivery: ${selectedDelivery?.label}`,
           couponCode: appliedCoupon || null,
           deliveryOption,
         }),
       });
-
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Checkout failed");
+        const err = await response.json();
+        throw new Error(err.error || "Checkout failed");
       }
-
       const order = await response.json();
-      toast.success("Order Placed Successfully!");
-      
       const invoiceData = {
         orderId: order.orderNumber,
-        date: new Date(order.createdAt).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' }),
+        date: new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
         shipping: shippingAddress,
         delivery: selectedDelivery?.label,
-        payment: PAYMENT_METHODS.find(m => m.id === paymentMethod)?.label,
-        items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
-        subtotal: cartSubtotal,
-        discountAmount,
-        shippingCost,
-        codFee,
-        tax: estimatedTax,
-        total: totalCost
+        payment: "Cash on Delivery",
+        paymentId: "COD",
+        items: cart.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+        subtotal: cartSubtotal, discountAmount, shippingCost, codFee, tax: estimatedTax, total: totalCost,
       };
-      
       sessionStorage.setItem("scootfix_latest_invoice", JSON.stringify(invoiceData));
-      
       clearCart();
       sessionStorage.removeItem("scootfix_applied_coupon");
-      
+      toast.success("Order Placed Successfully!");
       router.push(`/order-success?id=${order.orderNumber}`);
     } catch (e: unknown) {
-      toast.error((e as Error).message || "Checkout failed. Please try again.");
+      toast.error((e as Error).message || "Checkout failed.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /** Online — Razorpay Orders + Checkout.js modal (supports UPI, Cards, Net Banking) */
+  const handleRazorpayPayment = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Create a Razorpay Order on the server
+      const res = await apiFetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: totalCost }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create Razorpay order");
+      }
+
+      const { razorpayOrderId, keyId } = await res.json();
+
+      // 2. Open Razorpay Checkout modal
+      const options = {
+        key: keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: Math.round(totalCost * 100),
+        currency: "INR",
+        name: "ScootFix",
+        description: `ScootFix Order — ${cart.length} item${cart.length !== 1 ? "s" : ""}`,
+        order_id: razorpayOrderId,
+        prefill: {
+          name: shippingAddress.name,
+          email: shippingAddress.email,
+          contact: shippingAddress.phone,
+        },
+        theme: { color: "#6366f1" },
+        // Explicitly enable desired payment methods
+        method: {
+          upi: true,
+          card: true,
+          netbanking: true,
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        handler: async (response: any) => {
+          // 3. Verify signature on server
+          try {
+            const verifyRes = await apiFetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+
+            if (!verifyRes.ok) {
+              const err = await verifyRes.json();
+              throw new Error(err.error || "Payment verification failed");
+            }
+
+            // 4. Create order in database
+            const orderRes = await apiFetch("/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                shippingAddress,
+                billingAddress: null,
+                paymentMethod: "online",
+                paymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                notes: `Delivery: ${selectedDelivery?.label}`,
+                couponCode: appliedCoupon || null,
+                deliveryOption,
+              }),
+            });
+
+            if (!orderRes.ok) {
+              const err = await orderRes.json();
+              throw new Error(err.error || "Failed to save order");
+            }
+
+            const order = await orderRes.json();
+
+            // Save invoice data
+            const invoiceData = {
+              orderId: order.orderNumber,
+              date: new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+              shipping: shippingAddress,
+              delivery: selectedDelivery?.label,
+              payment: "Paid Online (Razorpay)",
+              paymentId: response.razorpay_payment_id,
+              items: cart.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+              subtotal: cartSubtotal, discountAmount, shippingCost, codFee, tax: estimatedTax, total: totalCost,
+            };
+            sessionStorage.setItem("scootfix_latest_invoice", JSON.stringify(invoiceData));
+            sessionStorage.removeItem("scootfix_applied_coupon");
+
+            clearCart();
+            toast.success("Payment verified and order placed!");
+            router.push(`/order-success?id=${order.orderNumber}`);
+          } catch (err: unknown) {
+            toast.error((err as Error).message || "Order creation failed after payment.");
+          } finally {
+            setIsLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsLoading(false);
+            toast.error("Payment cancelled.");
+          },
+        },
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", (response: { error: { description: string } }) => {
+        toast.error(response.error.description || "Payment failed.");
+        setIsLoading(false);
+      });
+      rzp.open();
+    } catch (e: unknown) {
+      toast.error((e as Error).message || "Payment initiation failed.");
+      setIsLoading(false);
+    }
+  };
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (paymentMethod === "cod") {
+      await handleCODOrder();
+    } else {
+      await handleRazorpayPayment();
     }
   };
 
@@ -268,7 +370,7 @@ export default function CheckoutPage() {
           <FiShoppingBag size={28} />
         </div>
         <h1 className="text-2xl font-display font-bold text-text-primary mb-2">Checkout is Empty</h1>
-        <p className="text-text-secondary mb-8">Please add EV spare parts to your cart before proceeding to checkout.</p>
+        <p className="text-text-secondary mb-8">Please add EV spare parts to your cart before proceeding.</p>
         <Link href="/shop" className="block w-full">
           <Button size="lg" className="w-full">Explore catalog</Button>
         </Link>
@@ -281,128 +383,64 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-display font-bold text-text-primary mb-8">Secure Checkout</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        
         <div className="lg:col-span-2 space-y-6" ref={formRef}>
-          
+
+          {/* Step tabs */}
           <div className="grid grid-cols-3 gap-2 border-b border-border pb-4">
-            <button 
-              type="button"
-              onClick={() => step > 1 && goToStep(1)}
-              className={`text-left pb-2 border-b-2 transition-all ${step === 1 ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
-            >
-              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Step 1</p>
-              <p className="text-sm font-bold truncate">Address</p>
-            </button>
-            <button 
-              type="button"
-              onClick={() => step > 2 && goToStep(2)}
-              className={`text-left pb-2 border-b-2 transition-all ${step === 2 ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
-              disabled={step < 2}
-            >
-              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Step 2</p>
-              <p className="text-sm font-bold truncate">Delivery</p>
-            </button>
-            <button 
-              type="button"
-              className={`text-left pb-2 border-b-2 transition-all ${step === 3 ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
-              disabled={step < 3}
-            >
-              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Step 3</p>
-              <p className="text-sm font-bold truncate">Payment</p>
-            </button>
+            {[
+              { n: 1, label: "Address" },
+              { n: 2, label: "Delivery" },
+              { n: 3, label: "Payment" },
+            ].map(({ n, label }) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => step > n && goToStep(n)}
+                disabled={step < n}
+                className={`text-left pb-2 border-b-2 transition-all ${step === n ? "border-primary text-primary" : "border-transparent text-text-secondary"}`}
+              >
+                <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Step {n}</p>
+                <p className="text-sm font-bold truncate">{label}</p>
+              </button>
+            ))}
           </div>
 
+          {/* Step 1 — Address */}
           {step === 1 && (
             <form onSubmit={handleAddressSubmit} className="bg-surface border border-border rounded-xl p-6 space-y-4">
-              <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4"><FiMapPin className="text-primary"/> Shipping & Billing Address</h2>
-              
+              <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4">
+                <FiMapPin className="text-primary" /> Shipping &amp; Billing Address
+              </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase">Contact Name</label>
-                  <Input 
-                    type="text" 
-                    value={shippingAddress.name} 
-                    onChange={e => setShippingAddress(p => ({ ...p, name: e.target.value }))}
-                    placeholder="Enter full name" 
-                    required 
-                    autoComplete="name"
-                    enterKeyHint="next"
-                  />
+                  <Input type="text" value={shippingAddress.name} onChange={(e) => setShippingAddress((p) => ({ ...p, name: e.target.value }))} placeholder="Enter full name" required autoComplete="name" enterKeyHint="next" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase">Phone Number</label>
-                  <Input 
-                    type="tel" 
-                    value={shippingAddress.phone} 
-                    onChange={e => setShippingAddress(p => ({ ...p, phone: e.target.value }))}
-                    placeholder="e.g. 9876543210" 
-                    required 
-                    autoComplete="tel"
-                    inputMode="tel"
-                    enterKeyHint="next"
-                  />
+                  <Input type="tel" value={shippingAddress.phone} onChange={(e) => setShippingAddress((p) => ({ ...p, phone: e.target.value }))} placeholder="e.g. 9876543210" required autoComplete="tel" inputMode="tel" enterKeyHint="next" />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
                   <label className="text-xs font-semibold text-text-secondary uppercase">Email Address</label>
-                  <Input 
-                    type="email" 
-                    value={shippingAddress.email} 
-                    onChange={e => setShippingAddress(p => ({ ...p, email: e.target.value }))}
-                    placeholder="name@example.com" 
-                    required 
-                    autoComplete="email"
-                    inputMode="email"
-                    enterKeyHint="next"
-                  />
+                  <Input type="email" value={shippingAddress.email} onChange={(e) => setShippingAddress((p) => ({ ...p, email: e.target.value }))} placeholder="name@example.com" required autoComplete="email" inputMode="email" enterKeyHint="next" />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
                   <label className="text-xs font-semibold text-text-secondary uppercase">Street Address</label>
-                  <Input 
-                    type="text" 
-                    value={shippingAddress.street} 
-                    onChange={e => setShippingAddress(p => ({ ...p, street: e.target.value }))}
-                    placeholder="Flat/House No, Building, Area" 
-                    required 
-                    autoComplete="street-address"
-                    enterKeyHint="next"
-                  />
+                  <Input type="text" value={shippingAddress.street} onChange={(e) => setShippingAddress((p) => ({ ...p, street: e.target.value }))} placeholder="Flat/House No, Building, Area" required autoComplete="street-address" enterKeyHint="next" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase">City</label>
-                  <Input 
-                    type="text" 
-                    value={shippingAddress.city} 
-                    onChange={e => setShippingAddress(p => ({ ...p, city: e.target.value }))}
-                    required 
-                    autoComplete="address-level2"
-                    enterKeyHint="next"
-                  />
+                  <Input type="text" value={shippingAddress.city} onChange={(e) => setShippingAddress((p) => ({ ...p, city: e.target.value }))} required autoComplete="address-level2" enterKeyHint="next" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase">State</label>
-                  <Input 
-                    type="text" 
-                    value={shippingAddress.state} 
-                    onChange={e => setShippingAddress(p => ({ ...p, state: e.target.value }))}
-                    required 
-                    autoComplete="address-level1"
-                    enterKeyHint="next"
-                  />
+                  <Input type="text" value={shippingAddress.state} onChange={(e) => setShippingAddress((p) => ({ ...p, state: e.target.value }))} required autoComplete="address-level1" enterKeyHint="next" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase">ZIP / Postal Code</label>
-                  <Input 
-                    type="text" 
-                    value={shippingAddress.zipCode} 
-                    onChange={e => setShippingAddress(p => ({ ...p, zipCode: e.target.value }))}
-                    required 
-                    autoComplete="postal-code"
-                    inputMode="numeric"
-                    enterKeyHint="done"
-                  />
+                  <Input type="text" value={shippingAddress.zipCode} onChange={(e) => setShippingAddress((p) => ({ ...p, zipCode: e.target.value }))} required autoComplete="postal-code" inputMode="numeric" enterKeyHint="done" />
                 </div>
               </div>
-
               <Button type="submit" className="w-full h-12 mt-6 hidden sm:flex" rightIcon={<FiArrowRight />}>
                 Continue to Delivery Options
               </Button>
@@ -410,27 +448,19 @@ export default function CheckoutPage() {
             </form>
           )}
 
+          {/* Step 2 — Delivery */}
           {step === 2 && (
             <form onSubmit={handleDeliverySubmit} className="bg-surface border border-border rounded-xl p-6 space-y-4">
-              <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4"><FiTruck className="text-primary"/> Select Delivery Option</h2>
-
+              <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4">
+                <FiTruck className="text-primary" /> Select Delivery Option
+              </h2>
               <div className="space-y-3">
                 {DELIVERY_OPTIONS.map((option) => {
                   const actualPrice = discountedSubtotal > 5000 && option.id === "standard" ? 0 : option.price;
                   return (
-                    <label 
-                      key={option.id}
-                      className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${deliveryOption === option.id ? "border-primary bg-primary/5" : "border-border hover:bg-surface-elevated"}`}
-                    >
+                    <label key={option.id} className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${deliveryOption === option.id ? "border-primary bg-primary/5" : "border-border hover:bg-surface-elevated"}`}>
                       <div className="flex items-center gap-3">
-                        <input 
-                          type="radio" 
-                          name="delivery" 
-                          value={option.id} 
-                          checked={deliveryOption === option.id}
-                          onChange={() => setDeliveryOption(option.id)}
-                          className="w-4 h-4 text-primary focus:ring-primary border-border" 
-                        />
+                        <input type="radio" name="delivery" value={option.id} checked={deliveryOption === option.id} onChange={() => setDeliveryOption(option.id)} className="w-4 h-4 text-primary focus:ring-primary border-border" />
                         <div>
                           <p className="font-semibold text-sm text-text-primary">{option.label}</p>
                           <p className="text-xs text-text-secondary">{option.description}</p>
@@ -443,133 +473,80 @@ export default function CheckoutPage() {
                   );
                 })}
               </div>
-
               <div className="flex gap-4 pt-6">
-                <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(1)}>
-                  Back to Address
-                </Button>
-                <Button type="submit" className="flex-1 h-12" rightIcon={<FiArrowRight />}>
-                  Continue to Payment
-                </Button>
+                <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(1)}>Back to Address</Button>
+                <Button type="submit" className="flex-1 h-12" rightIcon={<FiArrowRight />}>Continue to Payment</Button>
               </div>
             </form>
           )}
 
+          {/* Step 3 — Payment */}
           {step === 3 && (
             <form data-step="3" onSubmit={handlePlaceOrder} className="bg-surface border border-border rounded-xl p-6 space-y-4">
-              <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4"><FiCreditCard className="text-primary"/> Select Payment Method</h2>
+              <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 mb-4">
+                <FiCreditCard className="text-primary" /> Select Payment Method
+              </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-1 flex flex-col gap-2">
-                  {PAYMENT_METHODS.map(method => (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() => setPaymentMethod(method.id)}
-                      className={`text-left p-3 border rounded-xl text-xs font-semibold transition-all ${paymentMethod === method.id ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-surface-elevated text-text-primary"}`}
-                    >
-                      {method.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="md:col-span-2 border border-border rounded-xl p-4 bg-background">
-                  {paymentMethod === "upi" && (
-                    <div className="space-y-4">
-                      <p className="text-xs text-text-secondary">Enter your virtual payment address (VPA) to receive a push payment request on your UPI app.</p>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-text-secondary uppercase">UPI ID</label>
-                        <Input 
-                          type="text" 
-                          placeholder="e.g. name@upi" 
-                          value={upiId}
-                          onChange={e => setUpiId(e.target.value)}
-                          required
-                          inputMode="text"
-                          enterKeyHint="done"
-                        />
-                      </div>
+              <div className="space-y-3">
+                {/* Online Payment */}
+                <label className={`flex items-start gap-4 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "online" ? "border-primary bg-primary/5" : "border-border hover:bg-surface-elevated"}`}>
+                  <input type="radio" name="payment" value="online" checked={paymentMethod === "online"} onChange={() => setPaymentMethod("online")} className="mt-0.5 w-4 h-4 text-primary focus:ring-primary border-border" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <FiSmartphone className="text-primary" size={16} />
+                      <p className="font-semibold text-sm text-text-primary">Pay Online</p>
+                      <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase tracking-wide">Razorpay</span>
                     </div>
-                  )}
-
-                  {paymentMethod === "card" && (
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-text-secondary uppercase">Card Number</label>
-                        <Input 
-                          type="text" 
-                          placeholder="4111 2222 3333 4444" 
-                          value={cardDetails.number}
-                          onChange={e => setCardDetails(p => ({ ...p, number: e.target.value }))}
-                          required 
-                          inputMode="numeric"
-                        />
+                    <p className="text-xs text-text-secondary mt-1">
+                      UPI, Credit / Debit Card, Net Banking &amp; Wallets — secured by Razorpay
+                    </p>
+                    {paymentMethod === "online" && (
+                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-text-muted">
+                        {["UPI / QR", "Visa", "Mastercard", "RuPay", "HDFC", "ICICI", "SBI", "Wallets"].map((tag) => (
+                          <span key={tag} className="px-2 py-0.5 border border-border rounded-md bg-surface">{tag}</span>
+                        ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-text-secondary uppercase">Expiry Date</label>
-                          <Input 
-                            type="text" 
-                            placeholder="MM/YY" 
-                            value={cardDetails.expiry}
-                            onChange={e => setCardDetails(p => ({ ...p, expiry: e.target.value }))}
-                            required 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-text-secondary uppercase">CVV</label>
-                          <Input 
-                            type="password" 
-                            placeholder="•••" 
-                            maxLength={3}
-                            value={cardDetails.cvc}
-                            onChange={e => setCardDetails(p => ({ ...p, cvc: e.target.value }))}
-                            required 
-                            inputMode="numeric"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                    {paymentMethod === "online" && (
+                      <p className="text-[11px] text-text-muted mt-2 flex items-center gap-1">
+                        <FiLock size={11} />
+                        A secure Razorpay checkout popup will open to complete payment.
+                      </p>
+                    )}
+                  </div>
+                </label>
 
-                  {paymentMethod === "netbanking" && (
-                    <div className="space-y-3">
-                      <p className="text-xs text-text-secondary">Select your bank from the list below. You will be redirected to your secure bank login to complete the payment.</p>
-                      <select className="w-full h-11 px-3 bg-surface border border-border rounded-md text-sm text-text-primary focus:outline-none">
-                        <option>State Bank of India (SBI)</option>
-                        <option>HDFC Bank</option>
-                        <option>ICICI Bank</option>
-                        <option>Axis Bank</option>
-                        <option>Kotak Mahindra Bank</option>
-                      </select>
+                {/* Cash on Delivery */}
+                <label className={`flex items-start gap-4 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "cod" ? "border-primary bg-primary/5" : "border-border hover:bg-surface-elevated"}`}>
+                  <input type="radio" name="payment" value="cod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} className="mt-0.5 w-4 h-4 text-primary focus:ring-primary border-border" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <FiInfo className="text-warning" size={16} />
+                      <p className="font-semibold text-sm text-text-primary">Cash on Delivery (COD)</p>
                     </div>
-                  )}
-
-                  {paymentMethod === "cod" && (
-                    <div className="space-y-2 flex items-start gap-2.5 text-warning p-3 bg-warning/5 border border-warning/10 rounded-lg">
-                      <FiInfo className="shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-semibold">Cash on Delivery (COD)</p>
-                        <p className="text-[11px] opacity-90 leading-normal">Pay cash/UPI directly to the delivery agent. A standard COD convenience fee of **₹50** applies to this shipment.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Pay cash or UPI directly to the delivery agent. A ₹50 convenience fee applies.
+                    </p>
+                  </div>
+                </label>
               </div>
 
-              <div className="flex gap-4 pt-8">
-                <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(2)}>
-                  Back to Delivery
-                </Button>
+              <div className="flex items-center gap-2 text-xs text-text-muted pt-2">
+                <FiLock size={12} />
+                <span>All online payments processed securely by Razorpay (PCI-DSS Level 1)</span>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(2)}>Back to Delivery</Button>
                 <Button type="submit" className="flex-1 h-12 shadow-glow" isLoading={isLoading} leftIcon={<FiLock />}>
-                  Pay {formatPrice(totalCost)}
+                  {paymentMethod === "cod" ? "Place Order" : `Pay ${formatPrice(totalCost)}`}
                 </Button>
               </div>
             </form>
           )}
-
         </div>
 
+        {/* Order Summary */}
         <div className="space-y-4">
           <div className="bg-surface border border-border rounded-xl p-6 space-y-6">
             <h2 className="text-xl font-display font-bold text-text-primary">Order Summary</h2>
@@ -580,9 +557,7 @@ export default function CheckoutPage() {
                     <p className="font-medium text-text-primary truncate">{item.name}</p>
                     <p className="text-xs text-text-muted">Qty: {item.quantity}</p>
                   </div>
-                  <span className="font-semibold text-text-primary shrink-0">
-                    {formatPrice(item.price * item.quantity)}
-                  </span>
+                  <span className="font-semibold text-text-primary shrink-0">{formatPrice(item.price * item.quantity)}</span>
                 </div>
               ))}
             </div>
@@ -597,27 +572,14 @@ export default function CheckoutPage() {
                       <p className="text-[10px] text-text-secondary mt-1">Discount Applied</p>
                     </div>
                   </div>
-                  <button 
-                    type="button" 
-                    onClick={handleRemoveCoupon} 
-                    className="p-1.5 hover:bg-danger/5 text-text-muted hover:text-danger rounded-lg transition-colors"
-                    title="Remove coupon"
-                  >
+                  <button type="button" onClick={handleRemoveCoupon} className="p-1.5 hover:bg-danger/5 text-text-muted hover:text-danger rounded-lg transition-colors" title="Remove coupon">
                     <FiTrash2 size={14} />
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponInput}
-                    onChange={e => setCouponInput(e.target.value)}
-                    placeholder="Enter Coupon Code"
-                    className="flex-grow px-3 bg-surface border border-border rounded-lg text-sm text-text-primary focus:outline-none placeholder:text-text-muted"
-                  />
-                  <Button type="submit" size="sm" variant="outline" isLoading={isCouponLoading}>
-                    Apply
-                  </Button>
+                  <input type="text" value={couponInput} onChange={(e) => setCouponInput(e.target.value)} placeholder="Enter Coupon Code" className="flex-grow px-3 bg-surface border border-border rounded-lg text-sm text-text-primary focus:outline-none placeholder:text-text-muted" />
+                  <Button type="submit" size="sm" variant="outline" isLoading={isCouponLoading}>Apply</Button>
                 </form>
               )}
             </div>
@@ -627,34 +589,29 @@ export default function CheckoutPage() {
                 <span>Subtotal</span>
                 <span className="text-text-primary font-medium">{formatPrice(cartSubtotal)}</span>
               </div>
-              
               {discountAmount > 0 && (
                 <div className="flex justify-between text-success">
                   <span>Discount ({appliedCoupon})</span>
                   <span className="font-semibold">-{formatPrice(discountAmount)}</span>
                 </div>
               )}
-
-              {gstNumber && (
+              {gstNumber ? (
                 <div className="flex justify-between text-text-secondary">
                   <span>Estimated GST ({gstRate}%)</span>
                   <span className="text-text-primary font-medium">{formatPrice(estimatedTax)}</span>
                 </div>
-              )}
-              {!gstNumber && (
+              ) : (
                 <div className="flex justify-between text-text-secondary">
                   <span>Taxes &amp; Fees</span>
                   <span className="text-text-primary font-medium">Incl. in price</span>
                 </div>
               )}
-              
               <div className="flex justify-between text-text-secondary">
                 <span>Shipping</span>
                 <span className="text-text-primary font-medium">
                   {shippingCost === 0 ? <span className="text-success font-semibold">FREE</span> : formatPrice(shippingCost)}
                 </span>
               </div>
-
               {paymentMethod === "cod" && (
                 <div className="flex justify-between text-text-secondary">
                   <span>COD Fee</span>
@@ -671,60 +628,27 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {/* Mobile sticky bottom bar */}
       <div
-        className="sm:hidden fixed left-0 right-0 z-40 bg-surface border-t border-border px-4 py-3 shadow-lg transition-all duration-200"
-        style={{
-          bottom: 0,
-          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-        }}
+        className="sm:hidden fixed left-0 right-0 z-40 bg-surface border-t border-border px-4 py-3 shadow-lg"
+        style={{ bottom: 0, paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         {step === 1 && (
-          <Button
-            type="button"
-            className="w-full h-12"
-            rightIcon={<FiArrowRight />}
-            onClick={() => {
-              if (!isAddressValid()) {
-                toast.error("Please fill in all shipping fields.");
-                return;
-              }
-              goToStep(2);
-            }}
-          >
+          <Button type="button" className="w-full h-12" rightIcon={<FiArrowRight />} onClick={() => { if (!isAddressValid()) { toast.error("Please fill in all shipping fields."); return; } goToStep(2); }}>
             Continue to Delivery Options
           </Button>
         )}
         {step === 2 && (
           <div className="flex gap-3">
-            <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(1)}>
-              Back
-            </Button>
-            <Button
-              type="button"
-              className="flex-1 h-12"
-              rightIcon={<FiArrowRight />}
-              onClick={() => goToStep(3)}
-            >
-              Continue to Payment
-            </Button>
+            <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(1)}>Back</Button>
+            <Button type="button" className="flex-1 h-12" rightIcon={<FiArrowRight />} onClick={() => goToStep(3)}>Continue to Payment</Button>
           </div>
         )}
         {step === 3 && (
           <div className="flex gap-3">
-            <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(2)}>
-              Back
-            </Button>
-            <Button
-              type="button"
-              className="flex-1 h-12 shadow-glow"
-              isLoading={isLoading}
-              leftIcon={<FiLock />}
-              onClick={(e) => {
-                const form = document.querySelector<HTMLFormElement>('form[data-step="3"]');
-                form?.requestSubmit();
-              }}
-            >
-              Pay {formatPrice(totalCost)}
+            <Button type="button" variant="outline" className="flex-1 h-12" onClick={() => goToStep(2)}>Back</Button>
+            <Button type="button" className="flex-1 h-12 shadow-glow" isLoading={isLoading} leftIcon={<FiLock />} onClick={() => { const form = document.querySelector<HTMLFormElement>('form[data-step="3"]'); form?.requestSubmit(); }}>
+              {paymentMethod === "cod" ? "Place Order" : `Pay ${formatPrice(totalCost)}`}
             </Button>
           </div>
         )}

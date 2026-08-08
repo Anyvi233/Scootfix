@@ -12,7 +12,8 @@ export class OrderService {
     paymentId?: string,
     notes?: string,
     couponCode?: string,
-    deliveryOption?: string
+    deliveryOption?: string,
+    razorpayOrderId?: string
   ) {
     // 1. Get cart items using CartRepository
     const cartItems = await CartRepository.findManyByUserId(userId);
@@ -99,7 +100,8 @@ export class OrderService {
       billingAddress,
       paymentMethod,
       paymentId,
-      notes
+      notes,
+      razorpayOrderId
     );
 
     // 5. Send order confirmation email (non-blocking — don't fail order if email fails)

@@ -34,10 +34,20 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { shippingAddress, billingAddress, paymentMethod, paymentId, notes, couponCode, deliveryOption } = body;
+    const { shippingAddress, billingAddress, paymentMethod, paymentId, razorpayOrderId, notes, couponCode, deliveryOption } = body;
 
     if (!shippingAddress || !paymentMethod) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // Reject simulated payment IDs for online payment methods
+    if (paymentMethod !== "cod") {
+      if (!paymentId || !paymentId.startsWith("pay_")) {
+        return NextResponse.json(
+          { error: "A verified Razorpay payment ID is required for online payments." },
+          { status: 400 }
+        );
+      }
     }
 
     const order = await OrderService.createOrder(
@@ -48,7 +58,8 @@ export async function POST(req: NextRequest) {
       paymentId,
       notes,
       couponCode,
-      deliveryOption
+      deliveryOption,
+      razorpayOrderId
     );
   // ---- Send WhatsApp admin notification ----
   await sendWhatsAppMessage(`New order placed: #${order.orderNumber}`);

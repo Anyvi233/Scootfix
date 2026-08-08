@@ -40,6 +40,18 @@ model User {
   @@index([createdAt])
 }
 
+enum OrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  FAILED
+  REFUNDED
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -227,7 +239,7 @@ model Order {
   id              String      @id @default(cuid())
   orderNumber     String      @unique
   userId          String?
-  status          String @default("PENDING")
+  status          OrderStatus @default(PENDING)
   subtotal        Float
   tax             Float
   shipping        Float
@@ -236,6 +248,7 @@ model Order {
   billingAddress  Json?
   paymentMethod   String
   paymentId       String?
+  razorpayOrderId String?
   notes           String?
   trackingNumber  String?
   trackingUrl     String?
@@ -252,6 +265,7 @@ model Order {
   @@index([createdAt])              // admin date-range sort
   @@index([userId, status])         // my-orders filtered by status
   @@index([paymentId])              // payment webhook lookup
+  @@index([razorpayOrderId])
 }
 
 model OrderItem {

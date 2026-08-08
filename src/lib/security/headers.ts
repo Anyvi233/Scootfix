@@ -15,14 +15,19 @@
 export const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-inline needed for Next.js inline scripts; tighten with nonce in prod
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    // unsafe-inline needed for Next.js inline scripts; also allow Razorpay checkout script and dynamically loaded chunks
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://*.razorpay.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob: https://images.unsplash.com https://res.cloudinary.com",
-    "connect-src 'self'",
+    // Allow images from Razorpay popup (card brand icons etc.) and Google auth avatars
+    "img-src 'self' data: blob: https://images.unsplash.com https://res.cloudinary.com https://*.razorpay.com https://lh3.googleusercontent.com",
+    // Allow API calls to Razorpay (used internally by checkout.js)
+    "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://*.razorpay.com",
+    // Allow Razorpay payment iframe to render inside our page
+    "frame-src 'self' https://*.razorpay.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    "form-action 'self' https://*.razorpay.com",
   ].join("; "),
 
   "X-Frame-Options": "DENY",
@@ -30,10 +35,11 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "X-DNS-Prefetch-Control": "off",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy":
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+    "camera=(), microphone=(), geolocation=(), usb=(), interest-cohort=()",
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
-  "X-XSS-Protection": "1; mode=block", // legacy but still useful for older browsers
+  "X-XSS-Protection": "1; mode=block",
 };
+
 
 /**
  * Inject security headers into a NextResponse or standard Response.

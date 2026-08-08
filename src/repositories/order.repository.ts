@@ -22,7 +22,8 @@ export class OrderRepository {
     billingAddress: any,
     paymentMethod: string,
     paymentId?: string,
-    notes?: string
+    notes?: string,
+    razorpayOrderId?: string
   ) {
     try {
       return await prisma.$transaction(async (tx) => {
@@ -31,7 +32,7 @@ export class OrderRepository {
           data: {
             orderNumber: generateOrderNumber(),
             userId,
-            status: "PENDING",
+            status: paymentMethod === "online" ? "PAID" : "PENDING",
             subtotal,
             tax,
             shipping,
@@ -40,6 +41,7 @@ export class OrderRepository {
             billingAddress: billingAddress || shippingAddress,
             paymentMethod,
             paymentId,
+            razorpayOrderId,
             notes,
             items: {
               create: cartItems.map((item) => ({

@@ -87,13 +87,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Razorpay Checkout script */}
+        <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
+      </head>
       <body
         className={`${inter.variable} ${outfit.variable} antialiased min-h-screen flex flex-col`}
       >
         <SkipNav />
         <Providers>
           <div id="main-content" className="flex flex-col flex-1">
-            {children}
+             {children}
           </div>
         </Providers>
       </body>
